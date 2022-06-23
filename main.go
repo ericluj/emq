@@ -4,8 +4,7 @@ import (
 	"sync"
 	"syscall"
 
-	"emq/log"
-
+	log "github.com/ericluj/elog"
 	"github.com/judwhite/go-svc"
 )
 
