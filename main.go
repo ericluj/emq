@@ -1,6 +1,7 @@
 package main
 
 import (
+	"emq/emqd"
 	"sync"
 	"syscall"
 
@@ -9,8 +10,8 @@ import (
 )
 
 type program struct {
-	wg   sync.WaitGroup
-	quit chan struct{}
+	once sync.Once
+	emqd *emqd.EMQD
 }
 
 func main() {
@@ -21,28 +22,31 @@ func main() {
 }
 
 func (p *program) Init(env svc.Environment) error {
-	log.Infof("Init completed")
+	opts := emqd.NewOptions()
+	emqd, err := emqd.NewEMQD(opts)
+	if err != nil {
+		log.Fatalf("emqd.NewEMQD fatal: %v", err)
+	}
+	p.emqd = emqd
 	return nil
 }
 
 func (p *program) Start() error {
-	p.quit = make(chan struct{})
 
-	p.wg.Add(1)
 	go func() {
-		log.Infof("Starting...")
-		<-p.quit
-		log.Infof("Quit signal received...")
-		p.wg.Done()
+		err := p.emqd.Main()
+		if err != nil {
+			p.Stop()
+			log.Fatalf("p.emqd.Main fatal: %v", err)
+		}
 	}()
 
 	return nil
 }
 
 func (p *program) Stop() error {
-	log.Infof("Stopping...")
-	close(p.quit)
-	p.wg.Wait()
-	log.Infof("Stopped.")
+	p.once.Do(func() {
+		p.emqd.Exit()
+	})
 	return nil
 }
