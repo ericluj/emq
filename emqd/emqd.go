@@ -3,6 +3,7 @@ package emqd
 import (
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	log "github.com/ericluj/elog"
@@ -13,10 +14,23 @@ type EMQD struct {
 
 	topicMap map[string]*Topic
 
-	exitChan chan int
-
 	tcpListener  net.Listener
 	httpListener net.Listener
+
+	exitChan  chan int         // 程序退出信号
+	waitGroup WaitGroupWrapper // 平滑退出
+}
+
+type WaitGroupWrapper struct {
+	sync.WaitGroup
+}
+
+func (w *WaitGroupWrapper) Wrap(cb func()) {
+	w.Add(1)
+	go func() {
+		cb()
+		w.Done()
+	}()
 }
 
 func NewEMQD(opts *Options) (*EMQD, error) {
@@ -40,11 +54,43 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 }
 
 func (e *EMQD) Main() error {
-	log.Infof("main...")
-	return nil
+	exitCh := make(chan error)
+	var once sync.Once
+	exitFunc := func(err error) {
+		once.Do(func() {
+			if err != nil {
+				log.Infof("error: %v", err)
+			}
+			exitCh <- err
+		})
+	}
+
+	// tcp server
+	e.waitGroup.Wrap(func() {
+		exitFunc(TCPServer(e.tcpListener))
+	})
+
+	// http server
+	e.waitGroup.Wrap(func() {
+		exitFunc(HTTPServer(e.httpListener))
+	})
+
+	err := <-exitCh
+	return err
 }
 
-func (e *EMQD) Exit() error {
-	log.Infof("exit...")
-	return nil
+func (e *EMQD) Exit() {
+	if e.tcpListener != nil {
+		e.tcpListener.Close()
+	}
+
+	if e.httpListener != nil {
+		e.httpListener.Close()
+	}
+
+	// 等待goruntine都处理完毕
+	close(e.exitChan)
+	e.waitGroup.Wait()
+
+	log.Infof("EMQ: bye")
 }

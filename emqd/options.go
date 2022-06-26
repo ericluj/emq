@@ -27,7 +27,7 @@ func NewOptions() *Options {
 
 	return &Options{
 		ID:          defaultID,
-		TCPAddress:  "0.0.0.0:4150",
-		HTTPAddress: "0.0.0.0:4151",
+		TCPAddress:  "0.0.0.0:6001",
+		HTTPAddress: "0.0.0.0:6002",
 	}
 }
