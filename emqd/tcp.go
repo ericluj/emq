@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	log "github.com/ericluj/elog"
 )
@@ -54,23 +53,17 @@ func (t *TCPServer) Init(listener net.Listener) error {
 
 func (t *TCPServer) Handle(conn net.Conn) {
 	log.Infof("TCP: new client(%s)", conn.RemoteAddr())
-	client := t.NewClient(conn)
+
+	var prot Protocol
+	client := prot.NewClient(conn)
 	t.conns.Store(conn.RemoteAddr(), client)
 
-	// client循环处理工作
-	err := client.IOLoop()
+	// client处理工作
+	err := prot.IOLoop(client)
 	if err != nil {
 		log.Infof("client(%s) error: %v", conn.RemoteAddr(), err)
 	}
 
 	t.conns.Delete((conn.RemoteAddr()))
 	conn.Close()
-}
-
-func (t *TCPServer) NewClient(conn net.Conn) *Client {
-	clientID := atomic.AddInt64(&t.emqd.clientIDSequence, 1)
-	c := &Client{
-		ID: clientID,
-	}
-	return c
 }

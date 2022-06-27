@@ -5,9 +5,3 @@ type Client struct {
 
 	emqd *EMQD
 }
-
-func (c *Client) IOLoop() error {
-	for {
-
-	}
-}
