@@ -6,11 +6,17 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	log "github.com/ericluj/elog"
 )
 
-func TCPServer(listener net.Listener) error {
+type TCPServer struct {
+	emqd  *EMQD
+	conns sync.Map
+}
+
+func (t *TCPServer) Init(listener net.Listener) error {
 	log.Infof("TCP: listening on %s", listener.Addr())
 
 	var wg sync.WaitGroup
@@ -34,7 +40,7 @@ func TCPServer(listener net.Listener) error {
 
 		wg.Add(1)
 		go func() {
-			handle(clientConn)
+			t.Handle(clientConn)
 			wg.Done()
 		}()
 	}
@@ -46,4 +52,25 @@ func TCPServer(listener net.Listener) error {
 	return nil
 }
 
-func handle(conn net.Conn) {}
+func (t *TCPServer) Handle(conn net.Conn) {
+	log.Infof("TCP: new client(%s)", conn.RemoteAddr())
+	client := t.NewClient(conn)
+	t.conns.Store(conn.RemoteAddr(), client)
+
+	// client循环处理工作
+	err := client.IOLoop()
+	if err != nil {
+		log.Infof("client(%s) error: %v", conn.RemoteAddr(), err)
+	}
+
+	t.conns.Delete((conn.RemoteAddr()))
+	conn.Close()
+}
+
+func (t *TCPServer) NewClient(conn net.Conn) *Client {
+	clientID := atomic.AddInt64(&t.emqd.clientIDSequence, 1)
+	c := &Client{
+		ID: clientID,
+	}
+	return c
+}
