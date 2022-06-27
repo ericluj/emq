@@ -14,8 +14,11 @@ type EMQD struct {
 
 	topicMap map[string]*Topic
 
+	clientIDSequence int64
+
 	tcpListener  net.Listener
 	httpListener net.Listener
+	tcpServer    *TCPServer
 
 	exitChan  chan int         // 程序退出信号
 	waitGroup WaitGroupWrapper // 平滑退出
@@ -49,6 +52,7 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen (%s) failed - %s", opts.HTTPAddress, err)
 	}
+	e.tcpServer = &TCPServer{emqd: e}
 
 	return e, nil
 }
@@ -67,7 +71,7 @@ func (e *EMQD) Main() error {
 
 	// tcp server
 	e.waitGroup.Wrap(func() {
-		exitFunc(TCPServer(e.tcpListener))
+		exitFunc(e.tcpServer.Init(e.tcpListener))
 	})
 
 	// http server
