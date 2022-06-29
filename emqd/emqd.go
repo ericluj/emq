@@ -98,6 +98,7 @@ func (e *EMQD) Exit() {
 }
 
 func (e *EMQD) GetTopic(topicName string) *Topic {
+	// 可以不要这个读锁，直接写锁然后去处理，这么做为了提升性能
 	e.RLock() // 加读锁，防止被写入
 	t, ok := e.topicMap[topicName]
 	e.RUnlock() // 读完了，释放读锁
@@ -107,7 +108,7 @@ func (e *EMQD) GetTopic(topicName string) *Topic {
 
 	// 没有读取到，那么去创建
 	e.Lock()                      // 加写锁，防止读写
-	t, ok = e.topicMap[topicName] // TODO: 这里为什么要再读判断一次呢，设么时候可能会出现这种第二次读到的情况？
+	t, ok = e.topicMap[topicName] // 为什么要加锁后再读一次？因为可能会RUnlock到Lock这一段时间内被写入数据了
 	if ok {
 		e.Unlock()
 		return t
