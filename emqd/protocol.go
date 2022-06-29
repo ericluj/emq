@@ -36,12 +36,13 @@ func (p *Protocol) NewClient(conn net.Conn, emqd *EMQD) *Client {
 func (p *Protocol) IOLoop(c *Client) error {
 	var err error
 
-	// client的一个goruntine，用来执行一些操作
+	// client的一个goruntine，用来执行消息处理分发等相关操作
 	messagePumpStartedChan := make(chan bool)
 	go p.MessagePump(c, messagePumpStartedChan)
 	//保证在messagePump的初始化完成后才往下执行
 	<-messagePumpStartedChan
 
+	// 接受cmd并执行操作
 	for {
 		line, err := c.Reader.ReadSlice('\n')
 		if err != nil {
@@ -62,12 +63,35 @@ func (p *Protocol) IOLoop(c *Client) error {
 }
 
 func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
+	var (
+		err           error
+		memoryMsgChan chan *Message // 消息队列
+	)
+
+	memoryMsgChan = client.Channel.memoryMsgChan
+
 	close(startedChan)
 
 	for {
 		select {
+		case msg := <-memoryMsgChan:
+			err = p.SendMessage(client, msg)
+			if err != nil {
+				goto exit
+			}
 		case <-client.ExitChan:
 			return
 		}
 	}
+
+exit:
+	log.Infof("PROTOCOL: [%s] exiting messagePump", client)
+	// TODO: 一些结束操作
+	if err != nil {
+		log.Infof("PROTOCOL: [%s] messagePump error - %s", client, err)
+	}
+}
+
+func (p *Protocol) SendMessage(client *Client, msg *Message) error {
+	return nil
 }

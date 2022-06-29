@@ -10,9 +10,10 @@ import (
 )
 
 type Options struct {
-	ID          int64  `flag:"node-id"`
-	TCPAddress  string `flag:"tcp-address"`
-	HTTPAddress string `flag:"http-address"`
+	ID           int64
+	TCPAddress   string
+	HTTPAddress  string
+	MemQueueSize int64
 }
 
 func NewOptions() *Options {
@@ -26,8 +27,9 @@ func NewOptions() *Options {
 	defaultID := int64(crc32.ChecksumIEEE(h.Sum(nil)) % 1024)
 
 	return &Options{
-		ID:          defaultID,
-		TCPAddress:  "0.0.0.0:6001",
-		HTTPAddress: "0.0.0.0:6002",
+		ID:           defaultID,
+		TCPAddress:   "0.0.0.0:6001",
+		HTTPAddress:  "0.0.0.0:6002",
+		MemQueueSize: 10000,
 	}
 }

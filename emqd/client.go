@@ -13,5 +13,7 @@ type Client struct {
 	Reader *bufio.Reader
 	Writer *bufio.Writer
 
+	Channel *Channel // client订阅的channel
+
 	ExitChan chan int
 }

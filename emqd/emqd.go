@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"emq/internal/util"
 
 	log "github.com/ericluj/elog"
 )
 
 type EMQD struct {
+	opts atomic.Value
+	sync.RWMutex
 	startTime time.Time
 
 	topicMap map[string]*Topic
@@ -20,20 +25,8 @@ type EMQD struct {
 	httpListener net.Listener
 	tcpServer    *TCPServer
 
-	exitChan  chan int         // 程序退出信号
-	waitGroup WaitGroupWrapper // 平滑退出
-}
-
-type WaitGroupWrapper struct {
-	sync.WaitGroup
-}
-
-func (w *WaitGroupWrapper) Wrap(cb func()) {
-	w.Add(1)
-	go func() {
-		cb()
-		w.Done()
-	}()
+	exitChan  chan int              // 程序退出信号
+	waitGroup util.WaitGroupWrapper // 平滑退出
 }
 
 func NewEMQD(opts *Options) (*EMQD, error) {
@@ -54,7 +47,12 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 	}
 	e.tcpServer = &TCPServer{emqd: e}
 
+	e.opts.Store(opts)
 	return e, nil
+}
+
+func (e *EMQD) getOpts() *Options {
+	return e.opts.Load().(*Options)
 }
 
 func (e *EMQD) Main() error {
@@ -97,4 +95,29 @@ func (e *EMQD) Exit() {
 	e.waitGroup.Wait()
 
 	log.Infof("EMQ: bye")
+}
+
+func (e *EMQD) GetTopic(topicName string) *Topic {
+	e.RLock() // 加读锁，防止被写入
+	t, ok := e.topicMap[topicName]
+	e.RUnlock() // 读完了，释放读锁
+	if ok {
+		return t
+	}
+
+	// 没有读取到，那么去创建
+	e.Lock()                      // 加写锁，防止读写
+	t, ok = e.topicMap[topicName] // TODO: 这里为什么要再读判断一次呢，设么时候可能会出现这种第二次读到的情况？
+	if ok {
+		e.Unlock()
+		return t
+	}
+
+	t = NewTopic(topicName, e)
+	e.topicMap[topicName] = t
+	e.Unlock()
+	log.Infof("TOPIC(%s): created", t.name)
+
+	t.Start()
+	return t
 }
