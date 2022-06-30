@@ -17,7 +17,10 @@ const (
 	defaultBufferSize = 16 * 1024
 )
 
-var separatorBytes = []byte(" ")
+var (
+	separatorBytes = []byte(" ")
+	okBytes        = []byte("OK")
+)
 
 // 协议结构体 用来组织emqd和client的关联处理
 type Protocol struct {
@@ -87,6 +90,8 @@ func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
 	switch {
 	case bytes.Equal(params[0], []byte("PUB")):
 		return p.PUB(client, params)
+	case bytes.Equal(params[0], []byte("SUB")):
+		return p.SUB(client, params)
 	}
 	return nil, fmt.Errorf("invalid command %s", params[0])
 }
@@ -121,7 +126,33 @@ func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("PUB failed " + err.Error())
 	}
 
-	return []byte("OK"), nil
+	return okBytes, nil
+}
+
+func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
+	if atomic.LoadInt32(&client.State) != stateInit {
+		return nil, fmt.Errorf("cannot SUB in current state")
+	}
+
+	if len(params) < 2 {
+		return nil, fmt.Errorf("PUB insufficient number of parameters")
+	}
+
+	topicName := string(params[1])
+	channelName := string(params[2])
+
+	// TODO:特殊情况待处理
+	topic := p.emqd.GetTopic(topicName)
+	channel := topic.GetChannel(channelName)
+	err := channel.AddClient(client)
+	if err != nil {
+		return nil, fmt.Errorf("SUB failed " + err.Error())
+	}
+
+	atomic.StoreInt32(&client.State, stateSubscribed)
+	client.Channel = channel
+
+	return okBytes, nil
 }
 
 func readLen(r io.Reader, tmp []byte) (int32, error) {
