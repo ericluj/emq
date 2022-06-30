@@ -5,6 +5,14 @@ import (
 	"net"
 )
 
+const (
+	stateInit = iota
+	stateDisconnected
+	stateConnected
+	stateSubscribed
+	stateClosing
+)
+
 type Client struct {
 	ID   int64
 	emqd *EMQD
@@ -14,6 +22,7 @@ type Client struct {
 	Writer *bufio.Writer
 
 	Channel *Channel // client订阅的channel
+	State   int32
 
 	ExitChan chan int
 	lenBuf   [4]byte
