@@ -16,4 +16,6 @@ type Client struct {
 	Channel *Channel // client订阅的channel
 
 	ExitChan chan int
+	lenBuf   [4]byte
+	lenSlice []byte
 }

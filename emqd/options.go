@@ -14,6 +14,7 @@ type Options struct {
 	TCPAddress   string
 	HTTPAddress  string
 	MemQueueSize int64
+	MaxMsgSize   int64
 }
 
 func NewOptions() *Options {
@@ -31,5 +32,6 @@ func NewOptions() *Options {
 		TCPAddress:   "0.0.0.0:6001",
 		HTTPAddress:  "0.0.0.0:6002",
 		MemQueueSize: 10000,
+		MaxMsgSize:   1024 * 1024,
 	}
 }
