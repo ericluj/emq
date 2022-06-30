@@ -2,7 +2,10 @@ package emqd
 
 import (
 	"emq/internal/util"
+	"encoding/binary"
+	"encoding/hex"
 	"sync"
+	"sync/atomic"
 
 	log "github.com/ericluj/elog"
 )
@@ -17,6 +20,7 @@ type Topic struct {
 	exitChan          chan int
 	channelUpdateChan chan int
 	waitGroup         util.WaitGroupWrapper
+	MessageID         uint64
 }
 
 func NewTopic(topicName string, emqd *EMQD) *Topic {
@@ -108,4 +112,26 @@ func (t *Topic) GetChannel(channelName string) *Channel {
 	}
 
 	return c
+}
+
+func (t *Topic) GenerateID() MessageID {
+	id := atomic.AddUint64(&t.MessageID, 1)
+	b := make([]byte, 8)              // 8bit一个字节，64位8字节
+	binary.BigEndian.PutUint64(b, id) // 数字转为大端字节序
+	var h MessageID
+	hex.Encode(h[:], b) // hex编码，会将字节长度扩大一倍（为了保证特殊字符的传递？）
+	return h
+}
+
+func (t *Topic) PutMessage(m *Message) error {
+	t.RLock()
+	defer t.RUnlock()
+
+	select {
+	case t.memoryMsgChan <- m:
+	default:
+		// TODO: 如果写满了，放到磁盘
+	}
+
+	return nil
 }
