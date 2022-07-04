@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+
+	log "github.com/ericluj/elog"
 )
 
 const (
@@ -91,5 +93,27 @@ func (c *Consumer) ConnectToEMQD(addr string) error {
 	}
 	c.conns[addr] = conn
 	c.Unlock()
+	log.Infof("(%s) connecting to emqd", addr)
 
+	cleanupConnection := func() {
+		c.Lock()
+		delete(c.conns, addr)
+		c.Unlock()
+		conn.Close()
+	}
+
+	err := conn.Connect()
+	if err != nil {
+		cleanupConnection()
+		return err
+	}
+
+	cmd := Subscribe(c.topic, c.channel)
+	err = conn.WriteCommand(cmd)
+	if err != nil {
+		cleanupConnection()
+		return fmt.Errorf("[%v] failed to subscribe to %s:%s - %s", conn, c.topic, c.channel, err.Error())
+	}
+
+	return nil
 }
