@@ -1,10 +1,22 @@
 package emqcli
 
-import "net"
+import (
+	"fmt"
+	"io"
+	"net"
+	"time"
+)
+
+var (
+	MagicV1 = []byte("  V1")
+	timeout = time.Second * 5
+)
 
 type Conn struct {
 	addr string
 	conn *net.TCPConn
+	r    io.Reader
+	w    io.Writer
 }
 
 func NewConn(addr string) *Conn {
@@ -13,6 +25,49 @@ func NewConn(addr string) *Conn {
 	}
 }
 
+func (c *Conn) Write(p []byte) (int, error) {
+	c.conn.SetWriteDeadline(time.Now().Add(timeout))
+	return c.w.Write(p)
+}
+
+func (c *Conn) Close() {
+	c.conn.CloseRead()
+}
+
 func (c *Conn) Connect() error {
+	dialer := &net.Dialer{
+		Timeout: timeout,
+	}
+
+	conn, err := dialer.Dial("tcp", c.addr)
+	if err != nil {
+		return err
+	}
+
+	c.conn = conn.(*net.TCPConn)
+	c.r = conn
+	c.w = conn
+
+	_, err = c.Write(MagicV1)
+	if err != nil {
+		c.Close()
+		return fmt.Errorf("[%s] failed to write magic - %s", c.addr, err)
+	}
+
+	go c.readLoop()
+	go c.writeLoop()
+
+	return nil
+}
+
+func (c *Conn) readLoop() {
+
+}
+
+func (c *Conn) writeLoop() {
+
+}
+
+func (c *Conn) WriteCommand(cmd *Command) error {
 	return nil
 }

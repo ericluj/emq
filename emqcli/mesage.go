@@ -10,7 +10,7 @@ type Message struct {
 	Timestamp int64
 	Attempts  uint16
 
-	NSQDAddress string
+	EMQDAddress string
 }
 
 func (m *Message) Finish() {
