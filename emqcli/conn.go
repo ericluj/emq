@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
+
+	log "github.com/ericluj/elog"
 )
 
 var (
@@ -17,6 +20,7 @@ type Conn struct {
 	conn *net.TCPConn
 	r    io.Reader
 	w    io.Writer
+	sync.RWMutex
 }
 
 func NewConn(addr string) *Conn {
@@ -69,5 +73,12 @@ func (c *Conn) writeLoop() {
 }
 
 func (c *Conn) WriteCommand(cmd *Command) error {
+	c.Lock()
+	defer c.Unlock()
+	_, err := cmd.WriteTo(c)
+	if err != nil {
+		log.Infof("WriteCommand error: %v, cmd: %v", err, cmd)
+		return err
+	}
 	return nil
 }
