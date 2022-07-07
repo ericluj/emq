@@ -30,12 +30,13 @@ type Protocol struct {
 func (p *Protocol) NewClient(conn net.Conn, emqd *EMQD) *Client {
 	clientID := atomic.AddInt64(&p.emqd.clientIDSequence, 1)
 	c := &Client{
-		ID:       clientID,
-		emqd:     emqd,
-		Conn:     conn,
-		Reader:   bufio.NewReaderSize(conn, defaultBufferSize),
-		Writer:   bufio.NewWriterSize(conn, defaultBufferSize),
-		ExitChan: make(chan int),
+		ID:           clientID,
+		emqd:         emqd,
+		Conn:         conn,
+		Reader:       bufio.NewReaderSize(conn, defaultBufferSize),
+		Writer:       bufio.NewWriterSize(conn, defaultBufferSize),
+		ExitChan:     make(chan int),
+		SubEventChan: make(chan *Channel, 1),
 	}
 	c.lenSlice = c.lenBuf[:]
 	return c
@@ -202,5 +203,15 @@ exit:
 }
 
 func (p *Protocol) SendMessage(client *Client, msg *Message) error {
+	log.Infof("PROTOCOL: writing msg(%s) to client(%s) - %s", msg.ID, client, msg.Body)
+
+	buf := bufferPoolGet()
+	defer bufferPoolPut(buf)
+
+	_, err := msg.WriteTo(buf)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
