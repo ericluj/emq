@@ -18,12 +18,12 @@ type Command struct {
 
 func Subscribe(topic string, channel string) *Command {
 	var params = [][]byte{[]byte(topic), []byte(channel)}
-	return &Command{[]byte("SUB"), params, nil}
+	return &Command{Name: []byte("SUB"), Params: params, Body: nil}
 }
 
 func Publish(topic string, body []byte) *Command {
-	var params = [][]byte{[]byte(topic), body}
-	return &Command{[]byte("PUB"), params, nil}
+	var params = [][]byte{[]byte(topic)}
+	return &Command{Name: []byte("PUB"), Params: params, Body: body}
 }
 
 func (cmd *Command) WriteTo(w io.Writer) (int64, error) {

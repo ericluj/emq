@@ -18,6 +18,7 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 		name:          channelName,
 		emqd:          emqd,
 		memoryMsgChan: make(chan *Message, emqd.getOpts().MemQueueSize),
+		clients:       make(map[int64]*Client),
 	}
 
 	return c

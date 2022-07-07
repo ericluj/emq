@@ -90,7 +90,7 @@ func (t *Topic) Start() {
 func (t *Topic) GetChannel(channelName string) *Channel {
 	t.RLock()
 	c, ok := t.channelMap[channelName]
-	t.Unlock()
+	t.RUnlock()
 	if ok {
 		return c
 	}
@@ -104,6 +104,7 @@ func (t *Topic) GetChannel(channelName string) *Channel {
 
 	c = NewChannel(t.name, channelName, t.emqd)
 	t.channelMap[channelName] = c
+	t.Unlock()
 	log.Infof("TOPIC(%s): new channel(%s)", t.name, channelName)
 
 	select {
