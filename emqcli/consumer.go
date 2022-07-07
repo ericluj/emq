@@ -36,6 +36,7 @@ func NewConsumer(topic, channel string) (*Consumer, error) {
 		topic:             topic,
 		channel:           channel,
 		incommingMessages: make(chan *Message),
+		conns:             make(map[string]*Conn),
 	}
 	return c, nil
 }

@@ -151,6 +151,7 @@ func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
 
 	atomic.StoreInt32(&client.State, stateSubscribed)
 	client.Channel = channel
+	client.SubEventChan <- channel
 
 	return okBytes, nil
 }
@@ -167,15 +168,21 @@ func readLen(r io.Reader, tmp []byte) (int32, error) {
 func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 	var (
 		err           error
+		subChannel    *Channel      // 订阅的channel
 		memoryMsgChan chan *Message // 消息队列
 	)
 
-	memoryMsgChan = client.Channel.memoryMsgChan
+	subEventChan := client.SubEventChan
 
 	close(startedChan)
 
 	for {
+		if subChannel != nil {
+			memoryMsgChan = subChannel.memoryMsgChan
+		}
 		select {
+		case subChannel = <-subEventChan: // 订阅事件发生，不能再次订阅了
+			subEventChan = nil
 		case msg := <-memoryMsgChan:
 			err = p.SendMessage(client, msg)
 			if err != nil {
