@@ -3,6 +3,7 @@ package emqd
 import (
 	"bufio"
 	"net"
+	"sync"
 )
 
 const (
@@ -24,6 +25,8 @@ type Client struct {
 	Channel      *Channel      // client订阅的channel
 	SubEventChan chan *Channel // 事件，说明client有订阅
 	State        int32
+
+	writeLock sync.RWMutex
 
 	ExitChan chan int
 	lenBuf   [4]byte
