@@ -17,6 +17,12 @@ const (
 	defaultBufferSize = 16 * 1024
 )
 
+const (
+	frameTypeResponse int32 = 0
+	frameTypeError    int32 = 1
+	frameTypeMessage  int32 = 2
+)
+
 var (
 	separatorBytes = []byte(" ")
 	okBytes        = []byte("OK")
@@ -208,10 +214,49 @@ func (p *Protocol) SendMessage(client *Client, msg *Message) error {
 	buf := bufferPoolGet()
 	defer bufferPoolPut(buf)
 
+	// 构造数据流
 	_, err := msg.WriteTo(buf)
 	if err != nil {
 		return err
 	}
 
+	// 发送数据
+	err = p.Send(client, frameTypeMessage, buf.Bytes())
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (p *Protocol) Send(client *Client, frameType int32, data []byte) error {
+	client.writeLock.Lock()
+	defer client.writeLock.Unlock()
+
+	_, err := p.SendFramedResponse(client, frameType, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Protocol) SendFramedResponse(w io.Writer, frameType int32, data []byte) (int, error) {
+	beBuf := make([]byte, 4)
+	size := uint32(len(data)) + 4 // 长度包含 type+data
+
+	binary.BigEndian.PutUint32(beBuf, size)
+	n, err := w.Write(beBuf)
+	if err != nil {
+		return n, err
+	}
+
+	binary.BigEndian.PutUint32(beBuf, uint32(frameType))
+	n, err = w.Write(beBuf)
+	if err != nil {
+		return n + 4, err
+	}
+
+	n, err = w.Write(data)
+	return n + 8, err
 }
