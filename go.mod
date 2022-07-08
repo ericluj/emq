@@ -3,7 +3,7 @@ module emq
 go 1.17
 
 require (
-	github.com/ericluj/elog v1.1.1
+	github.com/ericluj/elog v1.2.1
 	github.com/judwhite/go-svc v1.2.1
 )
 

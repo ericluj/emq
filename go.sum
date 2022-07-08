@@ -1,7 +1,7 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/ericluj/elog v1.1.1 h1:gU+8nUhKlXRl4Dc0gCBtc4r5c4yF9TarT2OjI1P5NaI=
-github.com/ericluj/elog v1.1.1/go.mod h1:TzPlNJQf2hsFNjf1654keSLLe/dMRX4IXn47XdeGnB0=
+github.com/ericluj/elog v1.2.1 h1:nRN9l9VAgq6SrSMm56/OjAmuZQJCSMy5BMF1AowQsas=
+github.com/ericluj/elog v1.2.1/go.mod h1:TzPlNJQf2hsFNjf1654keSLLe/dMRX4IXn47XdeGnB0=
 github.com/judwhite/go-svc v1.2.1 h1:a7fsJzYUa33sfDJRF2N/WXhA+LonCEEY8BJb1tuS5tA=
 github.com/judwhite/go-svc v1.2.1/go.mod h1:mo/P2JNX8C07ywpP9YtO2gnBgnUiFTHqtsZekJrUuTk=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
