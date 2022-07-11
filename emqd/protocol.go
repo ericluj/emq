@@ -9,18 +9,14 @@ import (
 	"net"
 	"sync/atomic"
 
+	"emq/internal/common"
+
 	log "github.com/ericluj/elog"
 )
 
 const (
 	ProtoMagic        = "  V1"
 	defaultBufferSize = 16 * 1024
-)
-
-const (
-	frameTypeResponse int32 = 0
-	frameTypeError    int32 = 1
-	frameTypeMessage  int32 = 2
 )
 
 var (
@@ -209,7 +205,7 @@ exit:
 }
 
 func (p *Protocol) SendMessage(client *Client, msg *Message) error {
-	log.Infof("PROTOCOL: writing msg(%s) to client(%s) - %s", msg.ID, client, msg.Body)
+	log.Infof("PROTOCOL: writing msg(%s) to client(%d) - %s", msg.ID, client.ID, msg.Body)
 
 	buf := bufferPoolGet()
 	defer bufferPoolPut(buf)
@@ -221,7 +217,7 @@ func (p *Protocol) SendMessage(client *Client, msg *Message) error {
 	}
 
 	// 发送数据
-	err = p.Send(client, frameTypeMessage, buf.Bytes())
+	err = p.Send(client, common.FrameTypeMessage, buf.Bytes())
 	if err != nil {
 		return err
 	}
