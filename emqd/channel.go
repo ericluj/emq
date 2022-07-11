@@ -1,15 +1,20 @@
 package emqd
 
-import "sync"
+import (
+	"errors"
+	"sync"
+	"sync/atomic"
+)
 
 type Channel struct {
 	name      string
 	topicName string
 	emqd      *EMQD
 
+	exitFlag      int32
 	memoryMsgChan chan *Message
 	clients       map[int64]*Client
-	sync.RWMutex
+	mtx           sync.RWMutex
 }
 
 func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
@@ -24,6 +29,10 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 	return c
 }
 
+func (c *Channel) Exiting() bool {
+	return atomic.LoadInt32(&c.exitFlag) == 1
+}
+
 func (c *Channel) PutMessage(msg *Message) error {
 	select {
 	case c.memoryMsgChan <- msg:
@@ -34,15 +43,24 @@ func (c *Channel) PutMessage(msg *Message) error {
 }
 
 func (c *Channel) AddClient(client *Client) error {
-	c.RLock()
+	if c.Exiting() {
+		return errors.New("exiting")
+	}
+
+	c.mtx.RLock()
 	_, ok := c.clients[client.ID]
-	c.RUnlock()
+	c.mtx.RUnlock()
 	if ok {
 		return nil
 	}
 
-	c.Lock()
+	c.mtx.Lock()
+	_, ok = c.clients[client.ID]
+	if ok {
+		c.mtx.Unlock()
+		return nil
+	}
 	c.clients[client.ID] = client
-	c.Unlock()
+	c.mtx.Unlock()
 	return nil
 }

@@ -1,9 +1,9 @@
 package emqd
 
 import (
-	"emq/internal/util"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -11,15 +11,16 @@ import (
 )
 
 type Topic struct {
-	name string
-	emqd *EMQD
-	sync.RWMutex
+	name              string
+	emqd              *EMQD
+	mtx               sync.RWMutex
 	channelMap        map[string]*Channel
 	memoryMsgChan     chan *Message
 	startChan         chan int
+	exitFlag          int32
 	exitChan          chan int
 	channelUpdateChan chan int
-	waitGroup         util.WaitGroupWrapper
+	wg                sync.WaitGroup
 	MessageID         uint64
 }
 
@@ -29,12 +30,16 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 		emqd:              emqd,
 		channelMap:        make(map[string]*Channel),
 		memoryMsgChan:     make(chan *Message, emqd.getOpts().MemQueueSize),
-		startChan:         make(chan int, 1), // 之所以给1的缓冲，是防止start方法被阻塞，如果不给1那么必须得被读取才能写
-		exitChan:          make(chan int),    // topic关闭
-		channelUpdateChan: make(chan int),    // topic的channel修改
+		startChan:         make(chan int), // 之所以给1的缓冲，是防止start方法被阻塞，如果不给1那么必须得被读取才能写
+		exitChan:          make(chan int), // topic关闭
+		channelUpdateChan: make(chan int), // topic的channel修改
 	}
 
-	t.waitGroup.Wrap(t.messagePump)
+	t.wg.Add(1)
+	go func() {
+		t.messagePump()
+		t.wg.Done()
+	}()
 
 	return t
 }
@@ -45,7 +50,7 @@ func (t *Topic) messagePump() {
 		memoryMsgChan chan *Message
 	)
 
-	// 等待start
+	// 等待start TODO: 暂时没有考虑已有数据读取
 	select {
 	case <-t.startChan:
 	}
@@ -75,11 +80,11 @@ func (t *Topic) messagePump() {
 
 func (t *Topic) GetChans() []*Channel {
 	chans := make([]*Channel, 0)
-	t.RLock()
+	t.mtx.RLock()
 	for _, c := range t.channelMap {
 		chans = append(chans, c)
 	}
-	t.RUnlock()
+	t.mtx.RUnlock()
 	return chans
 }
 
@@ -88,28 +93,28 @@ func (t *Topic) Start() {
 }
 
 func (t *Topic) GetChannel(channelName string) *Channel {
-	t.RLock()
+	t.mtx.RLock()
 	c, ok := t.channelMap[channelName]
-	t.RUnlock()
+	t.mtx.RUnlock()
 	if ok {
 		return c
 	}
 
-	t.Lock()
+	t.mtx.Lock()
 	c, ok = t.channelMap[channelName]
 	if ok {
-		t.Unlock()
+		t.mtx.Unlock()
 		return c
 	}
 
 	c = NewChannel(t.name, channelName, t.emqd)
 	t.channelMap[channelName] = c
-	t.Unlock()
+	t.mtx.Unlock()
 	log.Infof("TOPIC(%s): new channel(%s)", t.name, channelName)
 
 	select {
 	case t.channelUpdateChan <- 1: // 通知channel列表变化
-	case <-t.exitChan:
+	case <-t.exitChan: // TODO:
 	}
 
 	return c
@@ -124,9 +129,17 @@ func (t *Topic) GenerateID() MessageID {
 	return h
 }
 
+func (t *Topic) Exiting() bool {
+	return atomic.LoadInt32(&t.exitFlag) == 1
+}
+
 func (t *Topic) PutMessage(m *Message) error {
-	t.RLock()
-	defer t.RUnlock()
+	t.mtx.RLock()
+	defer t.mtx.RUnlock()
+
+	if t.Exiting() {
+		return errors.New("exiting")
+	}
 
 	select {
 	case t.memoryMsgChan <- m:

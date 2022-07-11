@@ -7,14 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"emq/internal/util"
-
 	log "github.com/ericluj/elog"
 )
 
 type EMQD struct {
-	opts atomic.Value
-	sync.RWMutex
+	opts      atomic.Value
+	mtx       sync.RWMutex
 	startTime time.Time
 
 	topicMap map[string]*Topic
@@ -25,8 +23,8 @@ type EMQD struct {
 	httpListener net.Listener
 	tcpServer    *TCPServer
 
-	exitChan  chan int              // 程序退出信号
-	waitGroup util.WaitGroupWrapper // 平滑退出
+	wg       sync.WaitGroup
+	exitChan chan int // 程序退出信号
 }
 
 func NewEMQD(opts *Options) (*EMQD, error) {
@@ -68,14 +66,18 @@ func (e *EMQD) Main() error {
 	}
 
 	// tcp server
-	e.waitGroup.Wrap(func() {
+	e.wg.Add(1)
+	go func() {
 		exitFunc(e.tcpServer.Init(e.tcpListener))
-	})
+		e.wg.Done()
+	}()
 
 	// http server
-	e.waitGroup.Wrap(func() {
+	e.wg.Add(1)
+	go func() {
 		exitFunc(HTTPServer(e.httpListener))
-	})
+		e.wg.Done()
+	}()
 
 	err := <-exitCh
 	return err
@@ -90,33 +92,35 @@ func (e *EMQD) Exit() {
 		e.httpListener.Close()
 	}
 
-	// 等待goruntine都处理完毕
+	// 通知所有goruntine关闭
 	close(e.exitChan)
-	e.waitGroup.Wait()
+
+	// 等待goruntine都处理完毕
+	e.wg.Wait()
 
 	log.Infof("EMQ: bye")
 }
 
 func (e *EMQD) GetTopic(topicName string) *Topic {
 	// 可以不要这个读锁，直接写锁然后去处理，这么做为了提升性能
-	e.RLock() // 加读锁，防止被写入
+	e.mtx.RLock() // 加读锁，防止被写入
 	t, ok := e.topicMap[topicName]
-	e.RUnlock() // 读完了，释放读锁
+	e.mtx.RUnlock() // 读完了，释放读锁
 	if ok {
 		return t
 	}
 
 	// 没有读取到，那么去创建
-	e.Lock()                      // 加写锁，防止读写
+	e.mtx.Lock()                  // 加写锁，防止读写
 	t, ok = e.topicMap[topicName] // 为什么要加锁后再读一次？因为可能会RUnlock到Lock这一段时间内被写入数据了
 	if ok {
-		e.Unlock()
+		e.mtx.Unlock()
 		return t
 	}
 
 	t = NewTopic(topicName, e)
 	e.topicMap[topicName] = t
-	e.Unlock()
+	e.mtx.Unlock()
 	log.Infof("TOPIC(%s): created", t.name)
 
 	t.Start()
