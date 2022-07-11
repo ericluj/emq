@@ -6,6 +6,8 @@ type ConnDelegate interface {
 	OnError(*Conn, []byte)
 
 	OnMessage(*Conn, *Message)
+
+	OnIOError(*Conn, error)
 }
 
 type consumerConnDelegate struct {
@@ -15,6 +17,7 @@ type consumerConnDelegate struct {
 func (d *consumerConnDelegate) OnResponse(c *Conn, data []byte) { d.r.onConnResponse(c, data) }
 func (d *consumerConnDelegate) OnError(c *Conn, data []byte)    { d.r.onConnError(c, data) }
 func (d *consumerConnDelegate) OnMessage(c *Conn, m *Message)   { d.r.onConnMessage(c, m) }
+func (d *consumerConnDelegate) OnIOError(c *Conn, err error)    { d.r.onConnIOError(c, err) }
 
 type producerConnDelegate struct {
 	w *Producer
@@ -23,6 +26,7 @@ type producerConnDelegate struct {
 func (d *producerConnDelegate) OnResponse(c *Conn, data []byte) {}
 func (d *producerConnDelegate) OnError(c *Conn, data []byte)    {}
 func (d *producerConnDelegate) OnMessage(c *Conn, m *Message)   {}
+func (d *producerConnDelegate) OnIOError(c *Conn, err error)    {}
 
 type connMessageDelegate struct {
 	c *Conn
