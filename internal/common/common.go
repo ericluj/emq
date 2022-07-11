@@ -6,4 +6,7 @@ const (
 	FrameTypeMessage  int32 = 2
 )
 
-const MsgIDLength = 16
+const (
+	MsgIDLength       = 16
+	minValidMsgLength = MsgIDLength + 8 + 2 // Timestamp + Attempts
+)

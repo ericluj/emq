@@ -4,14 +4,11 @@ import (
 	"encoding/binary"
 	"io"
 	"time"
+
+	"emq/internal/common"
 )
 
-const (
-	MsgIDLength       = 16
-	minValidMsgLength = MsgIDLength + 8 + 2 // Timestamp + Attempts
-)
-
-type MessageID [MsgIDLength]byte
+type MessageID [common.MsgIDLength]byte
 
 type Message struct {
 	ID        MessageID
