@@ -7,18 +7,16 @@ import (
 )
 
 type Producer struct {
-	id   int64
-	addr string
+	id int64
+
 	conn *Conn
 }
 
 func NewProducer(addr string) (*Producer, error) {
 	p := &Producer{
-		id:   atomic.AddInt64(&instCount, 1),
-		addr: addr,
-		conn: NewConn(addr),
+		id: atomic.AddInt64(&instCount, 1),
 	}
-
+	p.conn = NewConn(addr, &producerConnDelegate{w: p})
 	err := p.conn.Connect()
 	if err != nil {
 		log.Infof("Connect error: %v", err)
@@ -29,5 +27,6 @@ func NewProducer(addr string) (*Producer, error) {
 }
 
 func (p *Producer) Publish(topic string, body string) error {
-	return p.conn.WriteCommand(Publish(topic, []byte(body)))
+	cmd := Publish(topic, []byte(body))
+	return p.conn.WriteCommand(cmd)
 }

@@ -1,8 +1,13 @@
 package emqcli
 
-const MsgIDLength = 16
+import (
+	"encoding/binary"
+	"fmt"
 
-type MessageID [MsgIDLength]byte
+	"emq/internal/common"
+)
+
+type MessageID [common.MsgIDLength]byte
 
 type Message struct {
 	ID        MessageID
@@ -15,4 +20,20 @@ type Message struct {
 
 func (m *Message) Finish() {
 
+}
+
+// 数据格式：timestamp(8byte) + attempts(2byte) + messageID(16byte) + body
+func DecodeMessage(b []byte) (*Message, error) {
+	var msg Message
+
+	if len(b) < 10+common.MsgIDLength {
+		return nil, fmt.Errorf("not enough data to decode valid message")
+	}
+
+	msg.Timestamp = int64(binary.BigEndian.Uint64(b[:8]))
+	msg.Attempts = binary.BigEndian.Uint16(b[8:10])
+	copy(msg.ID[:], b[10:10+common.MsgIDLength])
+	msg.Body = b[10+common.MsgIDLength:]
+
+	return &msg, nil
 }
