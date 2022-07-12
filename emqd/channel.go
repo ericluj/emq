@@ -64,3 +64,22 @@ func (c *Channel) AddClient(client *Client) error {
 	c.mtx.Unlock()
 	return nil
 }
+
+func (c *Channel) RemoveClient(clientID int64) {
+	if c.Exiting() {
+		return
+	}
+
+	c.mtx.RLock()
+	_, ok := c.clients[clientID]
+	c.mtx.RUnlock()
+	if !ok {
+		return
+	}
+
+	c.mtx.Lock()
+	delete(c.clients, clientID)
+	c.mtx.Unlock()
+
+	// TODO: 额外处理
+}
