@@ -148,7 +148,6 @@ func (c *Conn) readLoop() {
 
 exit:
 	c.close() // TODO:这个关闭会把writeLoop关掉，为什么要有两个呢
-	log.Infof("readLoop exiting")
 	c.wg.Done()
 	log.Infof("readLoop exiting")
 }
