@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"sync/atomic"
+	"time"
 
 	"emq/internal/common"
 
@@ -44,18 +45,24 @@ func (p *Protocol) NewClient(conn net.Conn, emqd *EMQD) *Client {
 	return c
 }
 
-func (p *Protocol) IOLoop(c *Client) error {
-	var err error
+func (p *Protocol) IOLoop(client *Client) error {
+	var (
+		err      error
+		line     []byte
+		zeroTime time.Time
+	)
 
 	// client的一个goruntine，用来执行消息处理分发等相关操作
 	messagePumpStartedChan := make(chan bool)
-	go p.MessagePump(c, messagePumpStartedChan)
+	go p.MessagePump(client, messagePumpStartedChan)
 	//保证在messagePump的初始化完成后才往下执行
 	<-messagePumpStartedChan
 
 	// 接受cmd并执行操作
 	for {
-		line, err := c.Reader.ReadSlice('\n')
+		client.SetReadDeadline(zeroTime)
+
+		line, err = client.Reader.ReadSlice('\n')
 		if err != nil {
 			if err == io.EOF { // 如果结尾了，那么继续循环
 				err = nil
@@ -72,19 +79,27 @@ func (p *Protocol) IOLoop(c *Client) error {
 			line = line[:len(line)-1]
 		}
 		params := bytes.Split(line, separatorBytes)
-		log.Infof("PROTOCOL: [%s] %s", c.RemoteAddr(), params)
+		log.Infof("PROTOCOL: [%s] %s", client.RemoteAddr(), params)
 
 		var response []byte
-		response, err = p.Exec(c, params)
+		response, err = p.Exec(client, params)
 		if err != nil {
-
+			// TODO: 处理内部error
 		}
 		if response != nil {
-
+			err = p.Send(client, common.FrameTypeResponse, response)
+			if err != nil {
+				err = fmt.Errorf("failed to send response - %s", err)
+				break
+			}
 		}
 	}
 
-	close(c.ExitChan)
+	log.Infof("PROTOCOL: [%s] exiting ioloop", client.RemoteAddr())
+	close(client.ExitChan)
+	if client.Channel != nil {
+		client.Channel.RemoveClient(client.ID)
+	}
 
 	return err
 }
@@ -238,6 +253,7 @@ func (p *Protocol) Send(client *Client, frameType int32, data []byte) error {
 }
 
 func (p *Protocol) SendFramedResponse(w io.Writer, frameType int32, data []byte) (int, error) {
+	// 一点思考：为什么只有size和type需要转大端字节序而data不用呢，因为它俩是数字，而data是字符串（data中的数字是字符串形式的）
 	beBuf := make([]byte, 4)
 	size := uint32(len(data)) + 4 // 长度包含 type+data
 
