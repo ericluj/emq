@@ -10,3 +10,9 @@ const (
 	MsgIDLength       = 16
 	minValidMsgLength = MsgIDLength + 8 + 2 // Timestamp + Attempts
 )
+
+var (
+	HeartbeatBytes = []byte("_heartbeat_")
+	SeparatorBytes = []byte(" ")
+	OKBytes        = []byte("OK")
+)

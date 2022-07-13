@@ -1,6 +1,7 @@
 package emqcli
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -122,7 +123,17 @@ func (c *Conn) readLoop() {
 			goto exit
 		}
 
-		// TODO: 心跳处理
+		// 心跳处理
+		if frameType == common.FrameTypeResponse && bytes.Equal(data, common.HeartbeatBytes) {
+			c.delegate.OnHeartbeat(c)
+			err := c.WriteCommand(Nop())
+			if err != nil {
+				log.Infof("IO error: %v", err)
+				c.delegate.OnIOError(c, err)
+				goto exit
+			}
+			continue
+		}
 
 		switch frameType {
 		case common.FrameTypeResponse:

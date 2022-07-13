@@ -129,3 +129,7 @@ func (co *Consumer) onConnResponse(c *Conn, data []byte) {
 }
 
 func (r *Consumer) onConnError(c *Conn, data []byte) {}
+
+func (r *Consumer) onConnHeartbeat(c *Conn) {
+	log.Infof("heartbeat")
+}

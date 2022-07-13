@@ -26,6 +26,10 @@ func Publish(topic string, body []byte) *Command {
 	return &Command{Name: []byte("PUB"), Params: params, Body: body}
 }
 
+func Nop() *Command {
+	return &Command{[]byte("NOP"), nil, nil}
+}
+
 func (cmd *Command) WriteTo(w io.Writer) (int64, error) {
 	var (
 		total int64
