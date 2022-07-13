@@ -20,11 +20,6 @@ const (
 	defaultBufferSize = 16 * 1024
 )
 
-var (
-	separatorBytes = []byte(" ")
-	okBytes        = []byte("OK")
-)
-
 // 协议结构体 用来组织emqd和client的关联处理
 type Protocol struct {
 	emqd *EMQD
@@ -47,9 +42,8 @@ func (p *Protocol) NewClient(conn net.Conn, emqd *EMQD) *Client {
 
 func (p *Protocol) IOLoop(client *Client) error {
 	var (
-		err      error
-		line     []byte
-		zeroTime time.Time
+		err  error
+		line []byte
 	)
 
 	// client的一个goruntine，用来执行消息处理分发等相关操作
@@ -60,7 +54,7 @@ func (p *Protocol) IOLoop(client *Client) error {
 
 	// 接受cmd并执行操作
 	for {
-		client.SetReadDeadline(zeroTime)
+		client.SetReadDeadline(time.Now().Add(time.Second * 10))
 
 		line, err = client.Reader.ReadSlice('\n')
 		if err != nil {
@@ -78,7 +72,7 @@ func (p *Protocol) IOLoop(client *Client) error {
 		if len(line) > 0 && line[len(line)-1] == '\r' {
 			line = line[:len(line)-1]
 		}
-		params := bytes.Split(line, separatorBytes)
+		params := bytes.Split(line, common.SeparatorBytes)
 		log.Infof("PROTOCOL: [%s] %s", client.RemoteAddr(), params)
 
 		var response []byte
@@ -110,6 +104,8 @@ func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
 		return p.PUB(client, params)
 	case bytes.Equal(params[0], []byte("SUB")):
 		return p.SUB(client, params)
+	case bytes.Equal(params[0], []byte("NOP")):
+		return p.NOP(client, params)
 	}
 	return nil, fmt.Errorf("invalid command %s", params[0])
 }
@@ -144,7 +140,7 @@ func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("PUB failed " + err.Error())
 	}
 
-	return okBytes, nil
+	return common.OKBytes, nil
 }
 
 func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
@@ -171,7 +167,12 @@ func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
 	client.Channel = channel
 	client.SubEventChan <- channel
 
-	return okBytes, nil
+	return common.OKBytes, nil
+}
+
+func (p *Protocol) NOP(client *Client, params [][]byte) ([]byte, error) {
+	log.Infof("NOP")
+	return nil, nil
 }
 
 func readLen(r io.Reader, tmp []byte) (int32, error) {
@@ -189,7 +190,8 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 		subChannel    *Channel      // 订阅的channel
 		memoryMsgChan chan *Message // 消息队列
 	)
-
+	heartbeatTicker := time.NewTicker(time.Second * 1)
+	heartbeatChan := heartbeatTicker.C
 	subEventChan := client.SubEventChan
 
 	close(startedChan)
@@ -203,6 +205,12 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 			subEventChan = nil
 		case msg := <-memoryMsgChan:
 			err = p.SendMessage(client, msg)
+			if err != nil {
+				goto exit
+			}
+		case <-heartbeatChan:
+			log.Infof("send heartbeat")
+			err = p.Send(client, common.FrameTypeResponse, common.HeartbeatBytes)
 			if err != nil {
 				goto exit
 			}
