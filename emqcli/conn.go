@@ -15,10 +15,6 @@ import (
 	log "github.com/ericluj/elog"
 )
 
-var (
-	timeout = time.Second * 5
-)
-
 type msgResponse struct {
 	msg     *Message
 	cmd     *Command
@@ -57,12 +53,12 @@ func NewConn(addr string, delegate ConnDelegate) *Conn {
 }
 
 func (c *Conn) Write(p []byte) (int, error) {
-	c.conn.SetWriteDeadline(time.Now().Add(timeout))
+	c.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
 	return c.w.Write(p)
 }
 
 func (c *Conn) Read(p []byte) (int, error) {
-	c.conn.SetReadDeadline(time.Now().Add(timeout))
+	c.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
 	return c.r.Read(p)
 }
 
@@ -76,7 +72,7 @@ func (c *Conn) Close() error {
 
 func (c *Conn) Connect() error {
 	dialer := &net.Dialer{
-		Timeout: timeout,
+		Timeout: common.DialTimeout,
 	}
 
 	conn, err := dialer.Dial("tcp", c.addr)

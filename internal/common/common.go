@@ -1,5 +1,7 @@
 package common
 
+import "time"
+
 const (
 	FrameTypeResponse int32 = 0
 	FrameTypeError    int32 = 1
@@ -15,4 +17,11 @@ var (
 	HeartbeatBytes = []byte("_heartbeat_")
 	SeparatorBytes = []byte(" ")
 	OKBytes        = []byte("OK")
+)
+
+var (
+	DialTimeout      = time.Second
+	ReadTimeout      = time.Second * 60
+	WriteTimeout     = time.Second
+	HeartbeatTimeout = time.Second * 30
 )

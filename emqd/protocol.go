@@ -54,7 +54,7 @@ func (p *Protocol) IOLoop(client *Client) error {
 
 	// 接受cmd并执行操作
 	for {
-		client.SetReadDeadline(time.Now().Add(time.Second * 10))
+		client.SetReadDeadline(time.Now().Add(common.ReadTimeout))
 
 		line, err = client.Reader.ReadSlice('\n')
 		if err != nil {
@@ -190,7 +190,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 		subChannel    *Channel      // 订阅的channel
 		memoryMsgChan chan *Message // 消息队列
 	)
-	heartbeatTicker := time.NewTicker(time.Second * 1)
+	heartbeatTicker := time.NewTicker(common.HeartbeatTimeout)
 	heartbeatChan := heartbeatTicker.C
 	subEventChan := client.SubEventChan
 
