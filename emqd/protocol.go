@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -99,6 +100,10 @@ func (p *Protocol) IOLoop(client *Client) error {
 }
 
 func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
+	if bytes.Equal(params[0], []byte("IDENTIFY")) {
+		return p.IDENTITY(client, params)
+	}
+
 	switch {
 	case bytes.Equal(params[0], []byte("PUB")):
 		return p.PUB(client, params)
@@ -108,6 +113,57 @@ func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
 		return p.NOP(client, params)
 	}
 	return nil, fmt.Errorf("invalid command %s", params[0])
+}
+
+func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
+	var err error
+
+	if atomic.LoadInt32(&client.State) != stateInit {
+		return nil, fmt.Errorf("cannot IDENTIFY in current state")
+	}
+
+	bodyLen, err := readLen(client.Reader, client.lenSlice)
+	if err != nil {
+		return nil, fmt.Errorf("IDENTIFY failed to read body size")
+	}
+
+	if int64(bodyLen) > p.emqd.getOpts().MaxMsgSize {
+		return nil, fmt.Errorf("IDENTIFY body too big %d > %d", bodyLen, p.emqd.getOpts().MaxMsgSize)
+	}
+
+	if bodyLen <= 0 {
+		return nil, fmt.Errorf("IDENTIFY invalid body size %d", bodyLen)
+	}
+
+	body := make([]byte, bodyLen)
+	_, err = io.ReadFull(client.Reader, body)
+	if err != nil {
+		return nil, fmt.Errorf("IDENTIFY failed to read body")
+	}
+
+	var identifyData identifyData
+	err = json.Unmarshal(body, &identifyData)
+	if err != nil {
+		return nil, fmt.Errorf("IDENTIFY failed to decode JSON body")
+	}
+
+	log.Infof("PROTOCOL: [%s] %+v", client, identifyData)
+
+	// TODO: 这里是需要有一些identify的数据处理返回的
+
+	// tls协议
+	log.Infof("PROTOCOL: [%s] upgrading connection to TLS", client)
+	err = client.UpgradeTLS()
+	if err != nil {
+		return nil, fmt.Errorf("IDENTIFY failed " + err.Error())
+	}
+
+	err = p.Send(client, common.FrameTypeResponse, common.OKBytes)
+	if err != nil {
+		return nil, fmt.Errorf("IDENTIFY failed " + err.Error())
+	}
+
+	return nil, nil
 }
 
 func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {

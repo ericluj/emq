@@ -15,6 +15,8 @@ type Options struct {
 	HTTPAddress  string
 	MemQueueSize int64
 	MaxMsgSize   int64
+	TLSCert      string
+	TLSKey       string
 }
 
 func NewOptions() *Options {
