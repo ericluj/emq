@@ -1,6 +1,7 @@
 package emqd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
@@ -22,6 +23,7 @@ type EMQD struct {
 	tcpListener  net.Listener
 	httpListener net.Listener
 	tcpServer    *TCPServer
+	tlsConf      *tls.Config
 
 	wg       sync.WaitGroup
 	exitChan chan int // 程序退出信号
@@ -45,8 +47,38 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 	}
 	e.tcpServer = &TCPServer{emqd: e}
 
+	e.tlsConf, err = buildTLSConfig(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build TLS config - %s", err)
+	}
+	if e.tlsConf == nil {
+		return nil, fmt.Errorf("cannot require TLS client connections without TLS key and cert")
+	}
+
 	e.opts.Store(opts)
 	return e, nil
+}
+
+func buildTLSConfig(opts *Options) (*tls.Config, error) {
+	var tlsConfig *tls.Config
+
+	if opts.TLSCert == "" && opts.TLSKey == "" {
+		return nil, nil
+	}
+
+	cert, err := tls.LoadX509KeyPair(opts.TLSCert, opts.TLSKey)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+	}
+
+	tlsConfig.BuildNameToCertificate()
+
+	return tlsConfig, nil
 }
 
 func (e *EMQD) getOpts() *Options {
