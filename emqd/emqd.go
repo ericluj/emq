@@ -73,10 +73,7 @@ func buildTLSConfig(opts *Options) (*tls.Config, error) {
 
 	tlsConfig = &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
-
-	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
 }
