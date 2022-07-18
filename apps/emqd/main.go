@@ -1,11 +1,11 @@
 package main
 
 import (
-	"emq/emqd"
 	"sync"
 	"syscall"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/emqd"
 	"github.com/judwhite/go-svc"
 )
 

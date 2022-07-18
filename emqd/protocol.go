@@ -11,9 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"emq/internal/common"
-
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/common"
 )
 
 const (

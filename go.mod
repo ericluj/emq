@@ -1,4 +1,4 @@
-module emq
+module github.com/ericluj/emq
 
 go 1.17
 

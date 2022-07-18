@@ -3,9 +3,8 @@ package main
 import (
 	"os"
 
-	"emq/emqcli"
-
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/emqcli"
 )
 
 func main() {

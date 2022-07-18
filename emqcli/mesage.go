@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"emq/internal/common"
+	"github.com/ericluj/emq/internal/common"
 )
 
 type MessageID [common.MsgIDLength]byte
