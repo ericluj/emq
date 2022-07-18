@@ -151,11 +151,11 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 	// TODO: 这里是需要有一些identify的数据处理返回的
 
 	// tls协议
-	log.Infof("PROTOCOL: [%s] upgrading connection to TLS", client)
-	err = client.UpgradeTLS()
-	if err != nil {
-		return nil, fmt.Errorf("IDENTIFY failed " + err.Error())
-	}
+	// log.Infof("PROTOCOL: [%s] upgrading connection to TLS", client)
+	// err = client.UpgradeTLS()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("IDENTIFY failed " + err.Error())
+	// }
 
 	err = p.Send(client, common.FrameTypeResponse, common.OKBytes)
 	if err != nil {

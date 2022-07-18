@@ -2,6 +2,8 @@ package emqcli
 
 import (
 	"bytes"
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -25,6 +27,7 @@ type Conn struct {
 	addr     string
 	conn     *net.TCPConn
 	delegate ConnDelegate
+	tlsConn  *tls.Conn
 
 	r io.Reader
 	w io.Writer
@@ -89,10 +92,46 @@ func (c *Conn) Connect() error {
 		return fmt.Errorf("[%s] failed to write magic - %s", c.addr, err)
 	}
 
+	err = c.identify()
+	if err != nil {
+		return err
+	}
+
 	c.wg.Add(2)
 	go c.readLoop()
 	go c.writeLoop()
 
+	return nil
+}
+
+func (c *Conn) identify() error {
+	// if err := c.upgradeTLS(); err != nil {
+	// 	return err
+	// }
+
+	return nil
+}
+
+func (c *Conn) upgradeTLS() error {
+	conf := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	c.tlsConn = tls.Client(c.conn, conf)
+	err := c.tlsConn.Handshake()
+	if err != nil {
+		return err
+	}
+
+	c.r = c.tlsConn
+	c.w = c.tlsConn
+
+	frameType, data, err := ReadUnpackedResponse(c)
+	if err != nil {
+		return err
+	}
+	if frameType != common.FrameTypeResponse || !bytes.Equal(data, common.OKBytes) {
+		return errors.New("invalid response from TLS upgrade")
+	}
 	return nil
 }
 

@@ -28,12 +28,13 @@ func NewOptions() *Options {
 	h := md5.New()
 	io.WriteString(h, hostname)
 	defaultID := int64(crc32.ChecksumIEEE(h.Sum(nil)) % 1024)
-
 	return &Options{
 		ID:           defaultID,
 		TCPAddress:   "0.0.0.0:6001",
 		HTTPAddress:  "0.0.0.0:6002",
 		MemQueueSize: 10000,
 		MaxMsgSize:   1024 * 1024,
+		TLSCert:      "./test/certs/server.pem",
+		TLSKey:       "./test/certs/server.key",
 	}
 }
