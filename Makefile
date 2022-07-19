@@ -6,3 +6,6 @@ producer:
 
 emq:
 	go run apps/emqd/main.go
+
+lookupd:
+	go run apps/emqlookupd/main.go
