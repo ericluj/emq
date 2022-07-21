@@ -9,6 +9,8 @@ import (
 	"time"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/http_api"
+	"github.com/ericluj/emq/internal/protocol"
 )
 
 type EMQD struct {
@@ -97,14 +99,14 @@ func (e *EMQD) Main() error {
 	// tcp server
 	e.wg.Add(1)
 	go func() {
-		exitFunc(e.tcpServer.Init(e.tcpListener))
+		exitFunc(protocol.TCPServer(e.tcpListener, e.tcpServer))
 		e.wg.Done()
 	}()
 
 	// http server
 	e.wg.Add(1)
 	go func() {
-		exitFunc(HTTPServer(e.httpListener))
+		exitFunc(http_api.Serve(e.httpListener, newHTTPServer()))
 		e.wg.Done()
 	}()
 

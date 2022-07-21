@@ -2,27 +2,24 @@ package emqd
 
 import (
 	"fmt"
-	"net"
 	"net/http"
-	"strings"
-
-	log "github.com/ericluj/elog"
 )
 
-func HTTPServer(listener net.Listener) error {
-	log.Infof("HTTP: listening on %s", listener.Addr())
+type HTTPServer struct {
+	mux http.Handler
+}
 
+func newHTTPServer() *HTTPServer {
 	mux := http.NewServeMux()
 	mux.Handle("/ping", http.HandlerFunc(pingHandler))
-	err := http.Serve(listener, mux)
-
-	if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-		return fmt.Errorf("http.Serve() error - %s", err)
+	s := &HTTPServer{
+		mux: mux,
 	}
+	return s
+}
 
-	log.Infof("HTTP: closing %s", listener.Addr())
-
-	return nil
+func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	s.mux.ServeHTTP(w, req)
 }
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {
