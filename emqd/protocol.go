@@ -13,10 +13,10 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/protocol"
 )
 
 const (
-	ProtoMagic        = "  V1"
 	defaultBufferSize = 16 * 1024
 )
 
@@ -25,11 +25,10 @@ type Protocol struct {
 	emqd *EMQD
 }
 
-func (p *Protocol) NewClient(conn net.Conn, emqd *EMQD) *Client {
+func (p *Protocol) NewClient(conn net.Conn) protocol.Client {
 	clientID := atomic.AddInt64(&p.emqd.clientIDSequence, 1)
 	c := &Client{
 		ID:           clientID,
-		emqd:         emqd,
 		Conn:         conn,
 		Reader:       bufio.NewReaderSize(conn, defaultBufferSize),
 		Writer:       bufio.NewWriterSize(conn, defaultBufferSize),
@@ -40,11 +39,13 @@ func (p *Protocol) NewClient(conn net.Conn, emqd *EMQD) *Client {
 	return c
 }
 
-func (p *Protocol) IOLoop(client *Client) error {
+func (p *Protocol) IOLoop(c protocol.Client) error {
 	var (
 		err  error
 		line []byte
 	)
+
+	client := c.(*Client)
 
 	// client的一个goruntine，用来执行消息处理分发等相关操作
 	messagePumpStartedChan := make(chan bool)
@@ -307,31 +308,10 @@ func (p *Protocol) Send(client *Client, frameType int32, data []byte) error {
 	client.writeLock.Lock()
 	defer client.writeLock.Unlock()
 
-	_, err := p.SendFramedResponse(client, frameType, data)
+	_, err := protocol.SendFramedResponse(client, frameType, data)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (p *Protocol) SendFramedResponse(w io.Writer, frameType int32, data []byte) (int, error) {
-	// 一点思考：为什么只有size和type需要转大端字节序而data不用呢，因为它俩是数字，而data是字符串（data中的数字是字符串形式的）
-	beBuf := make([]byte, 4)
-	size := uint32(len(data)) + 4 // 长度包含 type+data
-
-	binary.BigEndian.PutUint32(beBuf, size)
-	n, err := w.Write(beBuf)
-	if err != nil {
-		return n, err
-	}
-
-	binary.BigEndian.PutUint32(beBuf, uint32(frameType))
-	n, err = w.Write(beBuf)
-	if err != nil {
-		return n + 4, err
-	}
-
-	n, err = w.Write(data)
-	return n + 8, err
 }

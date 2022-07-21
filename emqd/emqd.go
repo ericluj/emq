@@ -119,6 +119,10 @@ func (e *EMQD) Exit() {
 		e.tcpListener.Close()
 	}
 
+	if e.tcpServer != nil {
+		e.tcpServer.Close()
+	}
+
 	if e.httpListener != nil {
 		e.httpListener.Close()
 	}
