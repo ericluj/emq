@@ -14,9 +14,10 @@ const (
 )
 
 var (
-	HeartbeatBytes = []byte("_heartbeat_")
-	SeparatorBytes = []byte(" ")
-	OKBytes        = []byte("OK")
+	HeartbeatBytes   = []byte("_heartbeat_")
+	SeparatorBytes   = []byte(" ")
+	OKBytes          = []byte("OK")
+	BadProtocolBytes = []byte("E_BAD_PROTOCOL")
 )
 
 var (
@@ -24,4 +25,9 @@ var (
 	ReadTimeout      = time.Second * 60
 	WriteTimeout     = time.Second
 	HeartbeatTimeout = time.Second * 30
+)
+
+var (
+	ProtoMagic        = "  V1"
+	DefaultBufferSize = 16 * 1024
 )

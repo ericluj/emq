@@ -16,10 +16,6 @@ import (
 	"github.com/ericluj/emq/internal/protocol"
 )
 
-const (
-	defaultBufferSize = 16 * 1024
-)
-
 // 协议结构体 用来组织emqd和client的关联处理
 type Protocol struct {
 	emqd *EMQD
@@ -30,8 +26,8 @@ func (p *Protocol) NewClient(conn net.Conn) protocol.Client {
 	c := &Client{
 		ID:           clientID,
 		Conn:         conn,
-		Reader:       bufio.NewReaderSize(conn, defaultBufferSize),
-		Writer:       bufio.NewWriterSize(conn, defaultBufferSize),
+		Reader:       bufio.NewReaderSize(conn, common.DefaultBufferSize),
+		Writer:       bufio.NewWriterSize(conn, common.DefaultBufferSize),
 		ExitChan:     make(chan int),
 		SubEventChan: make(chan *Channel, 1),
 	}

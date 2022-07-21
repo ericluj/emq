@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ericluj/emq/internal/common"
 )
 
 const (
@@ -53,8 +55,8 @@ func (client *Client) UpgradeTLS() error {
 	}
 	client.tlsConn = tlsConn
 
-	client.Reader = bufio.NewReaderSize(client.tlsConn, defaultBufferSize)
-	client.Writer = bufio.NewWriterSize(client.tlsConn, defaultBufferSize)
+	client.Reader = bufio.NewReaderSize(client.tlsConn, common.DefaultBufferSize)
+	client.Writer = bufio.NewWriterSize(client.tlsConn, common.DefaultBufferSize)
 
 	atomic.StoreInt32(&client.TLS, 1)
 

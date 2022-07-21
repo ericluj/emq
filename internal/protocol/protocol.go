@@ -1,51 +1,51 @@
 package protocol
 
 import (
-	"fmt"
+	"encoding/binary"
+	"io"
 	"net"
-	"runtime"
-	"strings"
-	"sync"
-
-	log "github.com/ericluj/elog"
 )
 
-type TCPHandler interface {
-	Handle(net.Conn)
+type Client interface {
+	Close() error
 }
 
-func TCPServer(listener net.Listener, handler TCPHandler) error {
-	log.Infof("TCP: listening on %s", listener.Addr())
+type Protocol interface {
+	NewClient(net.Conn) Client
+	IOLoop(Client) error
+}
 
-	var wg sync.WaitGroup
+func SendFramedResponse(w io.Writer, frameType int32, data []byte) (int, error) {
+	// 一点思考：为什么只有size和type需要转大端字节序而data不用呢，因为它俩是数字，而data是字符串（data中的数字是字符串形式的）
+	beBuf := make([]byte, 4)
+	size := uint32(len(data)) + 4 // 长度包含 type+data
 
-	for {
-		clientConn, err := listener.Accept()
-		if err != nil {
-			if nerr, ok := err.(net.Error); ok && nerr.Temporary() {
-				log.Infof("temporary Accept() failure - %s", err)
-				// 如果是超时等临时错误，先暂停当前goruntine交出调度，时间片轮转到后再恢复后续操作
-				runtime.Gosched()
-				continue
-			}
-
-			if !strings.Contains(err.Error(), "use of closed network connection") {
-				return fmt.Errorf("listener.Accept() error - %s", err)
-			}
-
-			break
-		}
-
-		wg.Add(1)
-		go func() {
-			handler.Handle(clientConn)
-			wg.Done()
-		}()
+	binary.BigEndian.PutUint32(beBuf, size)
+	n, err := w.Write(beBuf)
+	if err != nil {
+		return n, err
 	}
 
-	wg.Wait()
+	binary.BigEndian.PutUint32(beBuf, uint32(frameType))
+	n, err = w.Write(beBuf)
+	if err != nil {
+		return n + 4, err
+	}
 
-	log.Infof("TCP: closing %s", listener.Addr())
+	n, err = w.Write(data)
+	return n + 8, err
+}
 
-	return nil
+func SendResponse(w io.Writer, data []byte) (int, error) {
+	err := binary.Write(w, binary.BigEndian, int32(len(data)))
+	if err != nil {
+		return 0, nil
+	}
+
+	n, err := w.Write(data)
+	if err != nil {
+		return 4, err
+	}
+
+	return (n + 4), err
 }
