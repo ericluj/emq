@@ -7,6 +7,7 @@ import (
 
 type Client struct {
 	net.Conn
-	Reader *bufio.Reader
-	Writer *bufio.Writer
+	Reader   *bufio.Reader
+	Writer   *bufio.Writer
+	peerInfo *PeerInfo
 }
