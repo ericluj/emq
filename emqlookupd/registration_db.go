@@ -16,6 +16,8 @@ type Registration struct {
 	SubKey   string
 }
 
+type Registrations []Registration
+
 func (k Registration) IsMatch(category, key, subKey string) bool {
 	if category != k.Category {
 		return false
@@ -44,6 +46,7 @@ type Producer struct {
 	tombstoned   bool
 	tombstonedAt time.Time
 }
+type Producers []*Producer
 
 func NewRegiostrationDB() *RegiostrationDB {
 	return &RegiostrationDB{
@@ -101,7 +104,7 @@ func (r *RegiostrationDB) RemoveProducer(k Registration, id string) (bool, int) 
 	return false, len(producers)
 }
 
-func (r *RegiostrationDB) FindRegistrations(category, key, subKey string) []Registration {
+func (r *RegiostrationDB) FindRegistrations(category, key, subKey string) Registrations {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
@@ -113,14 +116,14 @@ func (r *RegiostrationDB) FindRegistrations(category, key, subKey string) []Regi
 		}
 
 		if _, ok := r.registrationMap[k]; ok {
-			return []Registration{k}
+			return Registrations{k}
 		}
 
-		return []Registration{} // 没有搜到
+		return Registrations{} // 没有搜到
 	}
 
 	// 需要过滤出所有的符合通配符
-	results := make([]Registration, 0)
+	results := make(Registrations, 0)
 	for k := range r.registrationMap {
 		if !k.IsMatch(category, key, subKey) {
 			continue
@@ -132,4 +135,20 @@ func (r *RegiostrationDB) FindRegistrations(category, key, subKey string) []Regi
 
 func (r *RegiostrationDB) needFilter(key, subKey string) bool {
 	return key == "*" || subKey == "*"
+}
+
+func (rr Registrations) SubKeys() []string {
+	subkeys := make([]string, len(rr))
+	for i, k := range rr {
+		subkeys[i] = k.SubKey
+	}
+	return subkeys
+}
+
+func (pp Producers) PeerInfo() []*PeerInfo {
+	results := []*PeerInfo{}
+	for _, p := range pp {
+		results = append(results, p.peerInfo)
+	}
+	return results
 }

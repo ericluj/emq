@@ -1,27 +1,29 @@
 package emqd
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type HTTPServer struct {
-	mux http.Handler
+	router http.Handler
 }
 
 func newHTTPServer() *HTTPServer {
-	mux := http.NewServeMux()
-	mux.Handle("/ping", http.HandlerFunc(pingHandler))
-	s := &HTTPServer{
-		mux: mux,
-	}
+	s := &HTTPServer{}
+
+	router := gin.Default()
+	router.GET("/ping", s.ping)
+
+	s.router = router
 	return s
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	s.mux.ServeHTTP(w, req)
+	s.router.ServeHTTP(w, req)
 }
 
-func pingHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "ping")
+func (s *HTTPServer) ping(c *gin.Context) {
+	c.String(http.StatusOK, "ok")
 }
