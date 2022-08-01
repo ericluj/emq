@@ -10,13 +10,14 @@ import (
 )
 
 type Options struct {
-	ID           int64
-	TCPAddress   string
-	HTTPAddress  string
-	MemQueueSize int64
-	MaxMsgSize   int64
-	TLSCert      string
-	TLSKey       string
+	ID                  int64
+	TCPAddress          string
+	HTTPAddress         string
+	MemQueueSize        int64
+	MaxMsgSize          int64
+	TLSCert             string
+	TLSKey              string
+	LookupdTCPAddresses []string
 }
 
 func NewOptions() *Options {

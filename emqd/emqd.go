@@ -27,6 +27,9 @@ type EMQD struct {
 	tcpServer    *TCPServer
 	tlsConf      *tls.Config
 
+	lookupPeers atomic.Value
+	notifyChan  chan interface{}
+
 	wg       sync.WaitGroup
 	exitChan chan int // 程序退出信号
 }
@@ -107,6 +110,13 @@ func (e *EMQD) Main() error {
 	e.wg.Add(1)
 	go func() {
 		exitFunc(http_api.Serve(e.httpListener, newHTTPServer()))
+		e.wg.Done()
+	}()
+
+	// lookupLoop
+	e.wg.Add(1)
+	go func() {
+		e.lookupLoop()
 		e.wg.Done()
 	}()
 

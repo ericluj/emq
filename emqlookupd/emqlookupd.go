@@ -59,7 +59,7 @@ func (l *EMQLookupd) Main() error {
 
 	l.wg.Add(1)
 	go func() {
-		exitFunc(http_api.Serve(l.httpListener, newHTTPServer()))
+		exitFunc(http_api.Serve(l.httpListener, newHTTPServer(l)))
 		l.wg.Done()
 	}()
 

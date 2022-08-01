@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/command"
 )
 
 type Producer struct {
@@ -27,6 +28,6 @@ func NewProducer(addr string) (*Producer, error) {
 }
 
 func (p *Producer) Publish(topic string, body string) error {
-	cmd := Publish(topic, []byte(body))
+	cmd := command.PublishCmd(topic, []byte(body))
 	return p.conn.WriteCommand(cmd)
 }

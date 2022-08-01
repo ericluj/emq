@@ -149,7 +149,7 @@ func (db *RegiostrationDB) FindProducers(category, key, subKey string) Producers
 
 	// 含有*，过滤，模糊匹配
 	m := make(map[string]struct{}, 0) // 用来判读重复
-	var ps Producers
+	ps := make(Producers, 0)
 	for k, producerMap := range db.registrationMap {
 		if !k.IsMatch(category, key, subKey) {
 			continue

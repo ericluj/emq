@@ -13,12 +13,13 @@ import (
 	"time"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
 )
 
 type msgResponse struct {
 	msg     *Message
-	cmd     *Command
+	cmd     *command.Command
 	success bool
 	backoff bool
 }
@@ -32,7 +33,7 @@ type Conn struct {
 	r io.Reader
 	w io.Writer
 
-	cmdChan         chan *Command
+	cmdChan         chan *command.Command
 	msgResponseChan chan *msgResponse
 
 	mtx       sync.RWMutex
@@ -47,7 +48,7 @@ func NewConn(addr string, delegate ConnDelegate) *Conn {
 		addr:     addr,
 		delegate: delegate,
 
-		cmdChan:         make(chan *Command),
+		cmdChan:         make(chan *command.Command),
 		msgResponseChan: make(chan *msgResponse),
 
 		exitChan: make(chan int),
@@ -160,7 +161,7 @@ func (c *Conn) readLoop() {
 		// 心跳处理
 		if frameType == common.FrameTypeResponse && bytes.Equal(data, common.HeartbeatBytes) {
 			c.delegate.OnHeartbeat(c)
-			err := c.WriteCommand(Nop())
+			err := c.WriteCommand(command.NopCmd())
 			if err != nil {
 				log.Infof("IO error: %v", err)
 				c.delegate.OnIOError(c, err)
@@ -210,7 +211,7 @@ func (c *Conn) close() {
 
 }
 
-func (c *Conn) WriteCommand(cmd *Command) error {
+func (c *Conn) WriteCommand(cmd *command.Command) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	if _, err := cmd.WriteTo(c); err != nil {

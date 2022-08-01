@@ -1,13 +1,17 @@
-package emqcli
+package command
 
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/ericluj/emq/internal/common"
 )
 
-var (
-	byteSpace   = []byte(" ")
-	byteNewLine = []byte("\n")
+const (
+	SUB      = "SUB"
+	PUB      = "PUB"
+	NOP      = "NOP"
+	IDENTIFY = "IDENTIFY"
 )
 
 type Command struct {
@@ -16,20 +20,21 @@ type Command struct {
 	Body   []byte
 }
 
-func Subscribe(topic string, channel string) *Command {
+func SubscribeCmd(topic string, channel string) *Command {
 	var params = [][]byte{[]byte(topic), []byte(channel)}
-	return &Command{Name: []byte("SUB"), Params: params, Body: nil}
+	return &Command{Name: []byte(SUB), Params: params, Body: nil}
 }
 
-func Publish(topic string, body []byte) *Command {
+func PublishCmd(topic string, body []byte) *Command {
 	var params = [][]byte{[]byte(topic)}
-	return &Command{Name: []byte("PUB"), Params: params, Body: body}
+	return &Command{Name: []byte(PUB), Params: params, Body: body}
 }
 
-func Nop() *Command {
-	return &Command{[]byte("NOP"), nil, nil}
+func NopCmd() *Command {
+	return &Command{[]byte(NOP), nil, nil}
 }
 
+// emqcli to emqd
 func (cmd *Command) WriteTo(w io.Writer) (int64, error) {
 	var (
 		total int64
@@ -46,7 +51,7 @@ func (cmd *Command) WriteTo(w io.Writer) (int64, error) {
 
 	// 发送参数
 	for _, param := range cmd.Params {
-		n, err := w.Write(byteSpace) // 空格分开
+		n, err := w.Write(common.SeparatorBytes) // 空格分开
 		total += int64(n)
 		if err != nil {
 			return total, err
@@ -59,7 +64,7 @@ func (cmd *Command) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	// 发送消息内容前换行
-	n, err = w.Write(byteNewLine)
+	n, err = w.Write(common.NewLineBytes)
 	total += int64(n)
 	if err != nil {
 		return total, err

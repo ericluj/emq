@@ -11,8 +11,10 @@ type HTTPServer struct {
 	emqlookupd *EMQLookupd
 }
 
-func newHTTPServer() *HTTPServer {
-	s := &HTTPServer{}
+func newHTTPServer(l *EMQLookupd) *HTTPServer {
+	s := &HTTPServer{
+		emqlookupd: l,
+	}
 
 	router := gin.Default()
 	router.GET("/ping", s.ping)

@@ -4,7 +4,7 @@ consumer:
 producer:
 	go run apps/producer/main.go
 
-emq:
+emqd:
 	go run apps/emqd/main.go
 
 lookupd:

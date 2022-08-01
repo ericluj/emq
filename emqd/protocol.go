@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
 	"github.com/ericluj/emq/internal/protocol"
 )
@@ -96,16 +97,16 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 }
 
 func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
-	if bytes.Equal(params[0], []byte("IDENTIFY")) {
+	if bytes.Equal(params[0], []byte(command.IDENTIFY)) {
 		return p.IDENTITY(client, params)
 	}
 
 	switch {
-	case bytes.Equal(params[0], []byte("PUB")):
+	case bytes.Equal(params[0], []byte(command.PUB)):
 		return p.PUB(client, params)
-	case bytes.Equal(params[0], []byte("SUB")):
+	case bytes.Equal(params[0], []byte(command.SUB)):
 		return p.SUB(client, params)
-	case bytes.Equal(params[0], []byte("NOP")):
+	case bytes.Equal(params[0], []byte(command.NOP)):
 		return p.NOP(client, params)
 	}
 	return nil, fmt.Errorf("invalid command %s", params[0])

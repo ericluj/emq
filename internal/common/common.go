@@ -18,6 +18,7 @@ var (
 	SeparatorBytes   = []byte(" ")
 	OKBytes          = []byte("OK")
 	BadProtocolBytes = []byte("E_BAD_PROTOCOL")
+	NewLineBytes     = []byte("\n")
 )
 
 var (
@@ -31,3 +32,12 @@ var (
 	ProtoMagic        = "  V1"
 	DefaultBufferSize = 16 * 1024
 )
+
+func InArr(s string, arr []string) bool {
+	for _, v := range arr {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}

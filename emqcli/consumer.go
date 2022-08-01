@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/command"
 )
 
 const (
@@ -104,7 +105,7 @@ func (co *Consumer) ConnectToEMQD(addr string) error {
 		return err
 	}
 
-	cmd := Subscribe(co.topic, co.channel)
+	cmd := command.SubscribeCmd(co.topic, co.channel)
 	if err := conn.WriteCommand(cmd); err != nil {
 		conn.Close()
 		return fmt.Errorf("[%v] failed to subscribe to %s:%s - %s", conn, co.topic, co.channel, err.Error())
