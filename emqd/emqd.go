@@ -6,39 +6,38 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/common"
 	"github.com/ericluj/emq/internal/http_api"
 	"github.com/ericluj/emq/internal/protocol"
 )
 
 type EMQD struct {
-	opts      atomic.Value
-	mtx       sync.RWMutex
-	startTime time.Time
+	opts atomic.Value
+	mtx  sync.RWMutex
+	wg   sync.WaitGroup
 
-	topicMap map[string]*Topic
+	state    int32    // 状态
+	exitChan chan int // 程序退出信号
 
+	lookupPeers      atomic.Value
+	notifyChan       chan interface{} // 通知lookupd信号
+	topicMap         map[string]*Topic
 	clientIDSequence int64
 
 	tcpListener  net.Listener
 	httpListener net.Listener
 	tcpServer    *TCPServer
 	tlsConf      *tls.Config
-
-	lookupPeers atomic.Value
-	notifyChan  chan interface{}
-
-	wg       sync.WaitGroup
-	exitChan chan int // 程序退出信号
 }
 
 func NewEMQD(opts *Options) (*EMQD, error) {
 	e := &EMQD{
-		startTime: time.Now(),
-		topicMap:  make(map[string]*Topic),
-		exitChan:  make(chan int),
+		topicMap:   make(map[string]*Topic),
+		exitChan:   make(chan int),
+		notifyChan: make(chan interface{}),
+		state:      common.EmqdInit,
 	}
 
 	var err error
@@ -124,6 +123,13 @@ func (e *EMQD) Main() error {
 	return err
 }
 
+func (e *EMQD) LoadMetadata() error {
+	atomic.StoreInt32(&e.state, common.EmqdLoading)    // 数据加载中
+	defer atomic.StoreInt32(&e.state, common.EmqdInit) // 加载完毕变成初始状态
+
+	return nil
+}
+
 func (e *EMQD) Exit() {
 	if e.tcpListener != nil {
 		e.tcpListener.Close()
@@ -136,6 +142,13 @@ func (e *EMQD) Exit() {
 	if e.httpListener != nil {
 		e.httpListener.Close()
 	}
+
+	e.mtx.Lock()
+	// 关闭所有topic
+	for _, topic := range e.topicMap {
+		topic.Close()
+	}
+	e.mtx.Unlock()
 
 	// 通知所有goruntine关闭
 	close(e.exitChan)
@@ -170,4 +183,13 @@ func (e *EMQD) GetTopic(topicName string) *Topic {
 
 	t.Start()
 	return t
+}
+
+func (e *EMQD) Notify(v interface{}) {
+	// TODO: 持久化需要处理
+	e.wg.Add(1)
+	go func() {
+		e.notifyChan <- v
+		e.wg.Done()
+	}()
 }

@@ -87,7 +87,7 @@ func (c *Conn) Connect() error {
 	c.r = conn
 	c.w = conn
 
-	_, err = c.Write(MagicV1)
+	_, err = c.Write([]byte(common.ProtoMagic))
 	if err != nil {
 		c.Close()
 		return fmt.Errorf("[%s] failed to write magic - %s", c.addr, err)

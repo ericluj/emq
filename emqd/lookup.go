@@ -4,6 +4,7 @@ import (
 	"time"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
 )
 
@@ -37,7 +38,7 @@ func (e *EMQD) lookupLoop() {
 			// 心跳
 			for _, lookupPeer := range lookupPeers {
 				log.Infof("LOOKUPD(%s): sending heartbeat", lookupPeer)
-				cmd := "ping" // TODO: ping
+				cmd := command.PingCmd()
 				_, err := lookupPeer.Command(cmd)
 				if err != nil {
 					log.Infof("LOOKUPD(%s) error: %s - %s", lookupPeer, cmd, err)
@@ -46,7 +47,7 @@ func (e *EMQD) lookupLoop() {
 		case val := <-e.notifyChan:
 			// 获取行为对应的cmd，并通知lookupd
 			var (
-				cmd    string // TODO: cmd
+				cmd    *command.Command
 				branch string
 			)
 			switch val.(type) {
@@ -54,17 +55,17 @@ func (e *EMQD) lookupLoop() {
 				branch = "channel"
 				channel := val.(*Channel)
 				if channel.Exiting() {
-					cmd = "register"
+					cmd = command.RegisterCmd(channel.topicName, channel.name)
 				} else {
-					cmd = "unregister"
+					cmd = command.UnRegisterCmd(channel.topicName, channel.name)
 				}
 			case *Topic:
 				branch = "topic"
 				topic := val.(*Topic)
 				if topic.Exiting() {
-					cmd = "register"
+					cmd = command.RegisterCmd(topic.name, "")
 				} else {
-					cmd = "unregister"
+					cmd = command.UnRegisterCmd(topic.name, "")
 				}
 			}
 

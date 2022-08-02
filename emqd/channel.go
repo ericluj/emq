@@ -83,3 +83,17 @@ func (c *Channel) RemoveClient(clientID int64) {
 
 	// TODO: 额外处理
 }
+
+func (c *Channel) Delete() error {
+	return c.exit(true)
+}
+
+func (c *Channel) Close() error {
+	return c.exit(false)
+}
+
+func (c *Channel) exit(deleted bool) error {
+
+	// TODO: 处理
+	return nil
+}

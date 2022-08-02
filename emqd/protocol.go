@@ -115,7 +115,7 @@ func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
 func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 	var err error
 
-	if atomic.LoadInt32(&client.State) != stateInit {
+	if atomic.LoadInt32(&client.State) != common.ClientInit {
 		return nil, fmt.Errorf("cannot IDENTIFY in current state")
 	}
 
@@ -197,7 +197,7 @@ func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {
 }
 
 func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
-	if atomic.LoadInt32(&client.State) != stateInit {
+	if atomic.LoadInt32(&client.State) != common.ClientInit {
 		return nil, fmt.Errorf("cannot SUB in current state")
 	}
 
@@ -216,7 +216,7 @@ func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("SUB failed " + err.Error())
 	}
 
-	atomic.StoreInt32(&client.State, stateSubscribed)
+	atomic.StoreInt32(&client.State, common.ClientSubscribed)
 	client.Channel = channel
 	client.SubEventChan <- channel
 

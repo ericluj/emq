@@ -1,6 +1,8 @@
 package common
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	FrameTypeResponse int32 = 0
@@ -41,3 +43,32 @@ func InArr(s string, arr []string) bool {
 	}
 	return false
 }
+
+// emqd
+const (
+	EmqdInit    = iota
+	EmqdLoading // 加载数据
+)
+
+// topic
+const (
+	TopicInit = iota
+)
+
+// client
+const (
+	ClientInit = iota
+	ClientSubscribed
+)
+
+// lookup_peer
+const (
+	PeerInit = iota
+	PeerConnected
+)
+
+// consumer
+const (
+	ConsumerInit = iota
+	ConsumerConnected
+)

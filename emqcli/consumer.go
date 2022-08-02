@@ -7,14 +7,7 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
-)
-
-const (
-	stateInit = iota
-	stateDisconnected
-	stateConnected
-	stateSubscribed
-	stateClosing
+	"github.com/ericluj/emq/internal/common"
 )
 
 var instCount int64
@@ -50,7 +43,7 @@ type Handler interface {
 }
 
 func (co *Consumer) AddHandler(handler Handler) {
-	if atomic.LoadInt32(&co.state) == stateConnected {
+	if atomic.LoadInt32(&co.state) == common.ConsumerConnected {
 		panic("already connected")
 	}
 	atomic.AddInt32(&co.runningHandlers, 1)
@@ -84,13 +77,13 @@ func (co *Consumer) exit() {
 }
 
 func (co *Consumer) ConnectToEMQD(addr string) error {
-	if atomic.LoadInt32(&co.state) != stateInit {
+	if atomic.LoadInt32(&co.state) != common.ConsumerInit {
 		return fmt.Errorf("consumer can not connect")
 	}
 	if atomic.LoadInt32(&co.runningHandlers) == 0 {
 		return fmt.Errorf("no handlers")
 	}
-	atomic.StoreInt32(&co.state, stateConnected)
+	atomic.StoreInt32(&co.state, common.ConsumerConnected)
 
 	// 创建conn，如果有不能再创建
 	co.mtx.Lock()

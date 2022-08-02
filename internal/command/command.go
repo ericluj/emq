@@ -8,16 +8,41 @@ import (
 )
 
 const (
-	SUB      = "SUB"
-	PUB      = "PUB"
-	NOP      = "NOP"
-	IDENTIFY = "IDENTIFY"
+	PING       = "PING"
+	SUB        = "SUB"
+	PUB        = "PUB"
+	NOP        = "NOP"
+	IDENTIFY   = "IDENTIFY"
+	REGISTER   = "REGISTER"
+	UNREGISTER = "UNREGISTER"
 )
 
 type Command struct {
 	Name   []byte
 	Params [][]byte
 	Body   []byte
+}
+
+func PingCmd() *Command {
+	return &Command{Name: []byte(PING), Params: nil, Body: nil}
+}
+
+func RegisterCmd(topic, channel string) *Command {
+	params := [][]byte{}
+	params = append(params, []byte(topic))
+	if len(channel) > 0 {
+		params = append(params, []byte(channel))
+	}
+	return &Command{Name: []byte(REGISTER), Params: params, Body: nil}
+}
+
+func UnRegisterCmd(topic, channel string) *Command {
+	params := [][]byte{}
+	params = append(params, []byte(topic))
+	if len(channel) > 0 {
+		params = append(params, []byte(channel))
+	}
+	return &Command{Name: []byte(UNREGISTER), Params: params, Body: nil}
 }
 
 func SubscribeCmd(topic string, channel string) *Command {

@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 )
@@ -48,4 +49,25 @@ func SendResponse(w io.Writer, data []byte) (int, error) {
 	}
 
 	return (n + 4), err
+}
+
+func ReadResponse(r io.Reader) ([]byte, error) {
+	// 读出data长度（4个字节）
+	var msgSize int32
+	err := binary.Read(r, binary.BigEndian, &msgSize)
+	if err != nil {
+		return nil, err
+	}
+	if msgSize < 0 {
+		return nil, fmt.Errorf("response msg size is negative: %v", msgSize)
+	}
+
+	// 根据长度读出data内容
+	buf := make([]byte, msgSize)
+	_, err = io.ReadFull(r, buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
 }

@@ -11,14 +11,6 @@ import (
 	"github.com/ericluj/emq/internal/common"
 )
 
-const (
-	stateInit = iota
-	stateDisconnected
-	stateConnected
-	stateSubscribed
-	stateClosing
-)
-
 type Client struct {
 	ID   int64
 	emqd *EMQD

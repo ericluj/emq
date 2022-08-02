@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/common"
 )
 
 type Topic struct {
@@ -17,7 +18,7 @@ type Topic struct {
 	channelMap        map[string]*Channel
 	memoryMsgChan     chan *Message
 	startChan         chan int
-	exitFlag          int32
+	state             int32
 	exitChan          chan int
 	channelUpdateChan chan int
 	wg                sync.WaitGroup
@@ -40,6 +41,9 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 		t.messagePump()
 		t.wg.Done()
 	}()
+
+	// 通知lookupd
+	t.emqd.Notify(t)
 
 	return t
 }
@@ -92,6 +96,47 @@ func (t *Topic) Start() {
 	t.startChan <- 1 // TODO: 是否要select来防止多处start阻塞
 }
 
+func (t *Topic) Delete() error {
+	return t.exit(true)
+}
+
+func (t *Topic) Close() error {
+	return t.exit(false)
+}
+
+func (t *Topic) exit(deleted bool) error {
+	if deleted {
+		log.Infof("TOPIC(%s): deleting", t.name)
+		t.emqd.Notify(t) // 通知lookupd
+	} else {
+		log.Infof("TOPIC(%s): closing", t.name)
+	}
+
+	close(t.exitChan)
+
+	t.wg.Wait() // 等待所有数据处理完毕
+
+	if deleted {
+		t.mtx.Lock()
+		for _, channel := range t.channelMap {
+			delete(t.channelMap, channel.name)
+			channel.Close()
+		}
+		t.mtx.Unlock()
+
+		// TODO: 删除files
+		return nil
+	}
+
+	t.mtx.RLock()
+	for _, channel := range t.channelMap {
+		channel.Close()
+	}
+	t.mtx.RUnlock()
+
+	return nil
+}
+
 func (t *Topic) GetChannel(channelName string) *Channel {
 	t.mtx.RLock()
 	c, ok := t.channelMap[channelName]
@@ -130,7 +175,7 @@ func (t *Topic) GenerateID() MessageID {
 }
 
 func (t *Topic) Exiting() bool {
-	return atomic.LoadInt32(&t.exitFlag) == 1
+	return atomic.LoadInt32(&t.state) == common.TopicInit
 }
 
 func (t *Topic) PutMessage(m *Message) error {
