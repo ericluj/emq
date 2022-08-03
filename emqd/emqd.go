@@ -8,18 +8,18 @@ import (
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
-	"github.com/ericluj/emq/internal/common"
 	"github.com/ericluj/emq/internal/http_api"
 	"github.com/ericluj/emq/internal/protocol"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type EMQD struct {
 	opts atomic.Value
 	mtx  sync.RWMutex
-	wg   sync.WaitGroup
+	wg   util.WaitGroup
 
-	state    int32    // 状态
-	exitChan chan int // 程序退出信号
+	exitChan  chan int // 程序退出信号
+	isLoading int32
 
 	lookupPeers      atomic.Value
 	notifyChan       chan interface{} // 通知lookupd信号
@@ -37,7 +37,6 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 		topicMap:   make(map[string]*Topic),
 		exitChan:   make(chan int),
 		notifyChan: make(chan interface{}),
-		state:      common.EmqdInit,
 	}
 
 	var err error
@@ -63,29 +62,6 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 	return e, nil
 }
 
-func buildTLSConfig(opts *Options) (*tls.Config, error) {
-	var tlsConfig *tls.Config
-
-	if opts.TLSCert == "" && opts.TLSKey == "" {
-		return nil, nil
-	}
-
-	cert, err := tls.LoadX509KeyPair(opts.TLSCert, opts.TLSKey)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	}
-
-	return tlsConfig, nil
-}
-
-func (e *EMQD) getOpts() *Options {
-	return e.opts.Load().(*Options)
-}
-
 func (e *EMQD) Main() error {
 	exitCh := make(chan error)
 	var once sync.Once
@@ -99,35 +75,20 @@ func (e *EMQD) Main() error {
 	}
 
 	// tcp server
-	e.wg.Add(1)
-	go func() {
+	e.wg.Wrap(func() {
 		exitFunc(protocol.TCPServer(e.tcpListener, e.tcpServer))
-		e.wg.Done()
-	}()
+	})
 
 	// http server
-	e.wg.Add(1)
-	go func() {
+	e.wg.Wrap(func() {
 		exitFunc(http_api.Serve(e.httpListener, newHTTPServer()))
-		e.wg.Done()
-	}()
+	})
 
 	// lookupLoop
-	e.wg.Add(1)
-	go func() {
-		e.lookupLoop()
-		e.wg.Done()
-	}()
+	e.wg.Wrap(e.lookupLoop)
 
 	err := <-exitCh
 	return err
-}
-
-func (e *EMQD) LoadMetadata() error {
-	atomic.StoreInt32(&e.state, common.EmqdLoading)    // 数据加载中
-	defer atomic.StoreInt32(&e.state, common.EmqdInit) // 加载完毕变成初始状态
-
-	return nil
 }
 
 func (e *EMQD) Exit() {
@@ -159,6 +120,51 @@ func (e *EMQD) Exit() {
 	log.Infof("EMQ: bye")
 }
 
+func (e *EMQD) Notify(v interface{}) {
+	e.wg.Wrap(func() {
+		select {
+		// 避免阻止exit
+		case <-e.exitChan:
+		case e.notifyChan <- v:
+			if atomic.LoadInt32(&e.isLoading) == 1 {
+				return
+			}
+
+			// TODO: 数据持久化
+		}
+	})
+}
+
+func buildTLSConfig(opts *Options) (*tls.Config, error) {
+	var tlsConfig *tls.Config
+
+	if opts.TLSCert == "" && opts.TLSKey == "" {
+		return nil, nil
+	}
+
+	cert, err := tls.LoadX509KeyPair(opts.TLSCert, opts.TLSKey)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	return tlsConfig, nil
+}
+
+func (e *EMQD) getOpts() *Options {
+	return e.opts.Load().(*Options)
+}
+
+func (e *EMQD) LoadMetadata() error {
+	atomic.StoreInt32(&e.isLoading, 1)       // 数据加载中
+	defer atomic.StoreInt32(&e.isLoading, 0) // 加载完毕变成初始状态
+
+	return nil
+}
+
 func (e *EMQD) GetTopic(topicName string) *Topic {
 	// 可以不要这个读锁，直接写锁然后去处理，这么做为了提升性能
 	e.mtx.RLock() // 加读锁，防止被写入
@@ -181,15 +187,11 @@ func (e *EMQD) GetTopic(topicName string) *Topic {
 	e.mtx.Unlock()
 	log.Infof("TOPIC(%s): created", t.name)
 
+	// 如果是在加载数据中，那么不需要进行后面的初始化操作
+	if atomic.LoadInt32(&e.isLoading) == 1 {
+		return t
+	}
+
 	t.Start()
 	return t
-}
-
-func (e *EMQD) Notify(v interface{}) {
-	// TODO: 持久化需要处理
-	e.wg.Add(1)
-	go func() {
-		e.notifyChan <- v
-		e.wg.Done()
-	}()
 }

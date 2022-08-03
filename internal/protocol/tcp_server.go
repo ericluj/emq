@@ -5,9 +5,9 @@ import (
 	"net"
 	"runtime"
 	"strings"
-	"sync"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type TCPHandler interface {
@@ -17,7 +17,7 @@ type TCPHandler interface {
 func TCPServer(listener net.Listener, handler TCPHandler) error {
 	log.Infof("TCP: listening on %s", listener.Addr())
 
-	var wg sync.WaitGroup
+	var wg util.WaitGroup
 
 	for {
 		clientConn, err := listener.Accept()
@@ -36,11 +36,9 @@ func TCPServer(listener net.Listener, handler TCPHandler) error {
 			break
 		}
 
-		wg.Add(1)
-		go func() {
+		wg.Wrap(func() {
 			handler.Handle(clientConn)
-			wg.Done()
-		}()
+		})
 	}
 
 	wg.Wait()

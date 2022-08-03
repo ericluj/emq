@@ -15,6 +15,7 @@ import (
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type msgResponse struct {
@@ -37,7 +38,7 @@ type Conn struct {
 	msgResponseChan chan *msgResponse
 
 	mtx       sync.RWMutex
-	wg        sync.WaitGroup
+	wg        util.WaitGroup
 	closeFlag int32
 	exitOnce  sync.Once
 	exitChan  chan int
@@ -70,6 +71,8 @@ func (c *Conn) Close() error {
 	if c.conn != nil {
 		c.conn.CloseRead()
 	}
+
+	c.wg.Wait()
 	return nil
 }
 
@@ -98,9 +101,8 @@ func (c *Conn) Connect() error {
 		return err
 	}
 
-	c.wg.Add(2)
-	go c.readLoop()
-	go c.writeLoop()
+	c.wg.Wrap(c.readLoop)
+	c.wg.Wrap(c.writeLoop)
 
 	return nil
 }
@@ -194,7 +196,6 @@ func (c *Conn) readLoop() {
 
 exit:
 	c.close() // TODO:这个关闭会把writeLoop关掉，为什么要有两个呢
-	c.wg.Done()
 	log.Infof("readLoop exiting")
 }
 

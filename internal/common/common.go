@@ -35,26 +35,6 @@ var (
 	DefaultBufferSize = 16 * 1024
 )
 
-func InArr(s string, arr []string) bool {
-	for _, v := range arr {
-		if s == v {
-			return true
-		}
-	}
-	return false
-}
-
-// emqd
-const (
-	EmqdInit    = iota
-	EmqdLoading // 加载数据
-)
-
-// topic
-const (
-	TopicInit = iota
-)
-
 // client
 const (
 	ClientInit = iota

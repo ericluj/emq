@@ -8,6 +8,7 @@ import (
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
 )
 
 var instCount int64
@@ -22,7 +23,7 @@ type Consumer struct {
 	runningHandlers  int32
 
 	mtx      sync.RWMutex
-	wg       sync.WaitGroup
+	wg       util.WaitGroup
 	exitOnce sync.Once
 	exitChan chan int
 }

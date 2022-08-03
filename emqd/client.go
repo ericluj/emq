@@ -12,14 +12,14 @@ import (
 )
 
 type Client struct {
-	ID   int64
 	emqd *EMQD
+	ID   int64
+
 	net.Conn
 	tlsConn *tls.Conn
 	TLS     int32
-
-	Reader *bufio.Reader
-	Writer *bufio.Writer
+	Reader  *bufio.Reader
+	Writer  *bufio.Writer
 
 	Channel      *Channel      // client订阅的channel
 	SubEventChan chan *Channel // 事件，说明client有订阅

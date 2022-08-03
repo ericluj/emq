@@ -4,17 +4,20 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+
+	log "github.com/ericluj/elog"
 )
 
 type Channel struct {
-	name      string
-	topicName string
 	emqd      *EMQD
+	topicName string
+	name      string
+	mtx       sync.RWMutex
 
-	exitFlag      int32
+	isExiting int32
+
 	memoryMsgChan chan *Message
 	clients       map[int64]*Client
-	mtx           sync.RWMutex
 }
 
 func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
@@ -26,11 +29,43 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 		clients:       make(map[int64]*Client),
 	}
 
+	c.emqd.Notify(c) // 通知lookupd
+
 	return c
 }
 
+func (c *Channel) Delete() error {
+	return c.exit(true)
+}
+
+func (c *Channel) Close() error {
+	return c.exit(false)
+}
+
+func (c *Channel) exit(deleted bool) error {
+	// 避免重复调用
+	if !atomic.CompareAndSwapInt32(&c.isExiting, 0, 1) {
+		return errors.New("exiting")
+	}
+
+	if deleted {
+		log.Infof("CHANNEL(%s): deleting", c.name)
+		c.emqd.Notify(c) // 通知lookupd
+	} else {
+		log.Infof("CHANNEL(%s): closing", c.name)
+	}
+
+	c.mtx.RLock()
+	for _, client := range c.clients {
+		client.Close()
+	}
+	c.mtx.RUnlock()
+
+	return nil
+}
+
 func (c *Channel) Exiting() bool {
-	return atomic.LoadInt32(&c.exitFlag) == 1
+	return atomic.LoadInt32(&c.isExiting) == 1
 }
 
 func (c *Channel) PutMessage(msg *Message) error {
@@ -82,18 +117,4 @@ func (c *Channel) RemoveClient(clientID int64) {
 	c.mtx.Unlock()
 
 	// TODO: 额外处理
-}
-
-func (c *Channel) Delete() error {
-	return c.exit(true)
-}
-
-func (c *Channel) Close() error {
-	return c.exit(false)
-}
-
-func (c *Channel) exit(deleted bool) error {
-
-	// TODO: 处理
-	return nil
 }

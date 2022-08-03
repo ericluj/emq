@@ -8,16 +8,18 @@ import (
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/http_api"
 	"github.com/ericluj/emq/internal/protocol"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type EMQLookupd struct {
-	mtx          sync.RWMutex
-	opts         *Options
+	opts *Options
+	wg   util.WaitGroup
+
 	tcpListener  net.Listener
 	httpListener net.Listener
 	tcpServer    *TCPServer
-	wg           sync.WaitGroup
-	DB           *RegiostrationDB
+
+	DB *RegiostrationDB
 }
 
 func NewEMQLookupd(opts *Options) (*EMQLookupd, error) {
@@ -51,17 +53,13 @@ func (l *EMQLookupd) Main() error {
 		})
 	}
 
-	l.wg.Add(1)
-	go func() {
+	l.wg.Wrap(func() {
 		exitFunc(protocol.TCPServer(l.tcpListener, l.tcpServer))
-		l.wg.Done()
-	}()
+	})
 
-	l.wg.Add(1)
-	go func() {
+	l.wg.Wrap(func() {
 		exitFunc(http_api.Serve(l.httpListener, newHTTPServer(l)))
-		l.wg.Done()
-	}()
+	})
 
 	err := <-exitCh
 	return err

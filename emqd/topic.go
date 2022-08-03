@@ -8,21 +8,24 @@ import (
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
-	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type Topic struct {
-	name              string
-	emqd              *EMQD
-	mtx               sync.RWMutex
+	emqd *EMQD
+	name string
+	mtx  sync.RWMutex
+	wg   util.WaitGroup
+
+	startChan chan int
+	exitChan  chan int
+	isExiting int32
+
+	channelUpdateChan chan int
 	channelMap        map[string]*Channel
 	memoryMsgChan     chan *Message
-	startChan         chan int
-	state             int32
-	exitChan          chan int
-	channelUpdateChan chan int
-	wg                sync.WaitGroup
-	MessageID         uint64
+
+	MessageID uint64
 }
 
 func NewTopic(topicName string, emqd *EMQD) *Topic {
@@ -31,31 +34,29 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 		emqd:              emqd,
 		channelMap:        make(map[string]*Channel),
 		memoryMsgChan:     make(chan *Message, emqd.getOpts().MemQueueSize),
-		startChan:         make(chan int), // 之所以给1的缓冲，是防止start方法被阻塞，如果不给1那么必须得被读取才能写
+		startChan:         make(chan int),
 		exitChan:          make(chan int), // topic关闭
 		channelUpdateChan: make(chan int), // topic的channel修改
 	}
 
-	t.wg.Add(1)
-	go func() {
-		t.messagePump()
-		t.wg.Done()
-	}()
+	t.wg.Wrap(t.messagePump)
 
-	// 通知lookupd
-	t.emqd.Notify(t)
+	t.emqd.Notify(t) // 通知lookupd
 
 	return t
 }
 
+// topic 执行所有逻辑的地方
 func (t *Topic) messagePump() {
 	var (
 		chans         []*Channel
 		memoryMsgChan chan *Message
 	)
 
-	// 等待start TODO: 暂时没有考虑已有数据读取
+	// 阻塞等待start
 	select {
+	case <-t.exitChan:
+		goto exit
 	case <-t.startChan:
 	}
 
@@ -76,24 +77,16 @@ func (t *Topic) messagePump() {
 				}
 			}
 		case <-t.exitChan:
-			log.Infof("TOPIC(%s): closing ... messagePump", t.name)
-			return
+			goto exit
 		}
 	}
-}
 
-func (t *Topic) GetChans() []*Channel {
-	chans := make([]*Channel, 0)
-	t.mtx.RLock()
-	for _, c := range t.channelMap {
-		chans = append(chans, c)
-	}
-	t.mtx.RUnlock()
-	return chans
+exit:
+	log.Infof("TOPIC(%s): closing ... messagePump", t.name)
 }
 
 func (t *Topic) Start() {
-	t.startChan <- 1 // TODO: 是否要select来防止多处start阻塞
+	t.startChan <- 1
 }
 
 func (t *Topic) Delete() error {
@@ -104,7 +97,16 @@ func (t *Topic) Close() error {
 	return t.exit(false)
 }
 
+func (t *Topic) Exiting() bool {
+	return atomic.LoadInt32(&t.isExiting) == 1
+}
+
 func (t *Topic) exit(deleted bool) error {
+	// 避免重复调用
+	if !atomic.CompareAndSwapInt32(&t.isExiting, 0, 1) {
+		return errors.New("exiting")
+	}
+
 	if deleted {
 		log.Infof("TOPIC(%s): deleting", t.name)
 		t.emqd.Notify(t) // 通知lookupd
@@ -137,6 +139,16 @@ func (t *Topic) exit(deleted bool) error {
 	return nil
 }
 
+func (t *Topic) GetChans() []*Channel {
+	chans := make([]*Channel, 0)
+	t.mtx.RLock()
+	for _, c := range t.channelMap {
+		chans = append(chans, c)
+	}
+	t.mtx.RUnlock()
+	return chans
+}
+
 func (t *Topic) GetChannel(channelName string) *Channel {
 	t.mtx.RLock()
 	c, ok := t.channelMap[channelName]
@@ -159,7 +171,7 @@ func (t *Topic) GetChannel(channelName string) *Channel {
 
 	select {
 	case t.channelUpdateChan <- 1: // 通知channel列表变化
-	case <-t.exitChan: // TODO:
+	case <-t.exitChan: // topic被关闭的情况
 	}
 
 	return c
@@ -172,10 +184,6 @@ func (t *Topic) GenerateID() MessageID {
 	var h MessageID
 	hex.Encode(h[:], b) // hex编码，会将字节长度扩大一倍（为了保证特殊字符的传递？）
 	return h
-}
-
-func (t *Topic) Exiting() bool {
-	return atomic.LoadInt32(&t.state) == common.TopicInit
 }
 
 func (t *Topic) PutMessage(m *Message) error {

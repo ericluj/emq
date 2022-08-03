@@ -5,7 +5,7 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
-	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
 )
 
 func (e *EMQD) lookupLoop() {
@@ -19,7 +19,7 @@ func (e *EMQD) lookupLoop() {
 	for {
 		if connect {
 			for _, host := range e.getOpts().LookupdTCPAddresses {
-				if common.InArr(host, lookupAddrs) {
+				if util.InArr(host, lookupAddrs) {
 					continue
 				}
 
