@@ -15,7 +15,7 @@ func (e *EMQD) lookupLoop() {
 	)
 	connect := true // 是否进行连接
 
-	ticker := time.Tick(time.Second * 15)
+	ticker := time.NewTicker(time.Second * 15)
 	for {
 		if connect {
 			for _, host := range e.getOpts().LookupdTCPAddresses {
@@ -34,14 +34,14 @@ func (e *EMQD) lookupLoop() {
 		}
 
 		select {
-		case <-ticker:
+		case <-ticker.C:
 			// 心跳
 			for _, lookupPeer := range lookupPeers {
-				log.Infof("LOOKUPD(%s): sending heartbeat", lookupPeer)
+				log.Infof("LOOKUPD(%v): sending heartbeat", lookupPeer)
 				cmd := command.PingCmd()
 				_, err := lookupPeer.Command(cmd)
 				if err != nil {
-					log.Infof("LOOKUPD(%s) error: %s - %s", lookupPeer, cmd, err)
+					log.Infof("LOOKUPD(%v) error: %s - %s", lookupPeer, cmd, err)
 				}
 			}
 		case val := <-e.notifyChan:
@@ -70,10 +70,10 @@ func (e *EMQD) lookupLoop() {
 			}
 
 			for _, lookupPeer := range lookupPeers {
-				log.Infof("LOOKUPD(%s): %s %s", lookupPeer, branch, cmd)
+				log.Infof("LOOKUPD(%v): %s %s", lookupPeer, branch, cmd)
 				_, err := lookupPeer.Command(cmd)
 				if err != nil {
-					log.Infof("LOOKUPD(%s): %s - %s", lookupPeer, cmd, err)
+					log.Infof("LOOKUPD(%v): %s - %s", lookupPeer, cmd, err)
 				}
 			}
 		case <-e.exitChan:

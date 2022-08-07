@@ -31,7 +31,3 @@ func (d *producerConnDelegate) OnError(c *Conn, data []byte)    {}
 func (d *producerConnDelegate) OnMessage(c *Conn, m *Message)   {}
 func (d *producerConnDelegate) OnIOError(c *Conn, err error)    {}
 func (d *producerConnDelegate) OnHeartbeat(c *Conn)             {}
-
-type connMessageDelegate struct {
-	c *Conn
-}

@@ -10,5 +10,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewProducer fatal: %v", err)
 	}
-	producer.Publish("test", "ceshi 测试")
+	err = producer.Publish("test", "ceshi 测试")
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
 }

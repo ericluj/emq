@@ -9,3 +9,6 @@ lookupd:
 
 emq:
 	go run apps/emqd/main.go
+
+lint:
+	golangci-lint run ./...

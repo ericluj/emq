@@ -49,10 +49,11 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		response, err = l.Exec(client, params)
 		if err != nil {
 			// TODO: 处理内部error
+			log.Infof("error: %v", err)
 		}
 
 		if response != nil {
-			_, err = protocol.SendResponse(client, response)
+			err = protocol.SendResponse(client, response)
 			if err != nil {
 				break
 			}
@@ -82,7 +83,7 @@ func (l *LookupProtocol) PING(client *Client, params []string) ([]byte, error) {
 	if client.peerInfo != nil {
 		cur := time.Unix(0, atomic.LoadInt64(&client.peerInfo.lastUpdate))
 		now := time.Now()
-		log.Infof("CLIENT(%s): pinged (last ping %s)", client.peerInfo.id, now.Sub(cur))
+		log.Infof("CLIENT(%v): pinged (last ping %s)", client.peerInfo.id, now.Sub(cur))
 		atomic.StoreInt64(&client.peerInfo.lastUpdate, now.UnixNano())
 	}
 	return common.OKBytes, nil
@@ -120,12 +121,12 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params []string) ([]byte, erro
 
 	atomic.StoreInt64(&peerInfo.lastUpdate, time.Now().UnixNano())
 
-	log.Infof("CLIENT(%s): IDENTIFY Address:%s TCP:%d HTTP:%d", client, peerInfo.BroadcastAddress, peerInfo.TCPPort, peerInfo.HTTPPort)
+	log.Infof("CLIENT(%v): IDENTIFY Address:%s TCP:%d HTTP:%d", client, peerInfo.BroadcastAddress, peerInfo.TCPPort, peerInfo.HTTPPort)
 
 	client.peerInfo = &peerInfo
 
 	if l.emqlookupd.DB.AddProducer(Registration{"client", "", ""}, &Producer{peerInfo: client.peerInfo}) {
-		log.Infof("DB: client(%s) REGISTER category:%s key:%s subkey:%s", client, "client", "", "")
+		log.Infof("DB: client(%v) REGISTER category:%s key:%s subkey:%s", client, "client", "", "")
 	}
 
 	data := make(map[string]interface{})
@@ -165,7 +166,7 @@ func (l *LookupProtocol) REGISTER(client *Client, params []string) ([]byte, erro
 		}
 
 		if l.emqlookupd.DB.AddProducer(key, producer) {
-			log.Infof("DB: client(%s) REGISTER category:%s key:%s subkey:%s", client, "channel", topic, channel)
+			log.Infof("DB: client(%v) REGISTER category:%s key:%s subkey:%s", client, "channel", topic, channel)
 		}
 	}
 
@@ -175,7 +176,7 @@ func (l *LookupProtocol) REGISTER(client *Client, params []string) ([]byte, erro
 		SubKey:   "",
 	}
 	if l.emqlookupd.DB.AddProducer(key, producer) {
-		log.Infof("DB: client(%s) REGISTER category:%s key:%s subkey:%s", client, "topic", topic, "")
+		log.Infof("DB: client(%v) REGISTER category:%s key:%s subkey:%s", client, "topic", topic, "")
 	}
 
 	return common.OKBytes, nil
@@ -205,7 +206,7 @@ func (l *LookupProtocol) UNREGISTER(client *Client, params []string) ([]byte, er
 
 		removed, left := l.emqlookupd.DB.RemoveProducer(key, client.peerInfo.id)
 		if removed {
-			log.Infof("DB: client(%s) UNREGISTER category:%s key:%s subkey:%s", client, "channel", topic, channel)
+			log.Infof("DB: client(%v) UNREGISTER category:%s key:%s subkey:%s", client, "channel", topic, channel)
 		}
 
 		if left == 0 {
@@ -216,7 +217,7 @@ func (l *LookupProtocol) UNREGISTER(client *Client, params []string) ([]byte, er
 		registrations := l.emqlookupd.DB.FindRegistrations("channel", topic, "*")
 		for _, r := range registrations {
 			if removed, _ := l.emqlookupd.DB.RemoveProducer(r, client.peerInfo.id); removed {
-				log.Infof("client(%s) unexpected UNREGISTER category:%s key:%s subkey:%s", client, "channel", topic, r.SubKey)
+				log.Infof("client(%v) unexpected UNREGISTER category:%s key:%s subkey:%s", client, "channel", topic, r.SubKey)
 			}
 		}
 
@@ -227,7 +228,7 @@ func (l *LookupProtocol) UNREGISTER(client *Client, params []string) ([]byte, er
 		}
 		removed, left := l.emqlookupd.DB.RemoveProducer(key, client.peerInfo.id)
 		if removed {
-			log.Infof("DB: client(%s) UNREGISTER category:%s key:%s subkey:%s", client, "topic", topic, "")
+			log.Infof("DB: client(%v) UNREGISTER category:%s key:%s subkey:%s", client, "topic", topic, "")
 		}
 
 		if left == 0 {

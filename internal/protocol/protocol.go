@@ -37,18 +37,18 @@ func SendFramedResponse(w io.Writer, frameType int32, data []byte) (int, error) 
 	return n + 8, err
 }
 
-func SendResponse(w io.Writer, data []byte) (int, error) {
+func SendResponse(w io.Writer, data []byte) error {
 	err := binary.Write(w, binary.BigEndian, int32(len(data)))
 	if err != nil {
-		return 0, nil
+		return nil
 	}
 
-	n, err := w.Write(data)
+	_, err = w.Write(data)
 	if err != nil {
-		return 4, err
+		return err
 	}
 
-	return (n + 4), err
+	return err
 }
 
 func ReadResponse(r io.Reader) ([]byte, error) {

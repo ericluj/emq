@@ -2,13 +2,8 @@ package emqd
 
 import (
 	"bufio"
-	"crypto/tls"
 	"net"
 	"sync"
-	"sync/atomic"
-	"time"
-
-	"github.com/ericluj/emq/internal/common"
 )
 
 type Client struct {
@@ -16,10 +11,8 @@ type Client struct {
 	ID   int64
 
 	net.Conn
-	tlsConn *tls.Conn
-	TLS     int32
-	Reader  *bufio.Reader
-	Writer  *bufio.Writer
+	Reader *bufio.Reader
+	Writer *bufio.Writer
 
 	Channel      *Channel      // client订阅的channel
 	SubEventChan chan *Channel // 事件，说明client有订阅
@@ -33,24 +26,4 @@ type Client struct {
 }
 
 type identifyData struct {
-}
-
-func (client *Client) UpgradeTLS() error {
-	client.writeLock.Lock()
-	defer client.writeLock.Unlock()
-
-	tlsConn := tls.Server(client.Conn, client.emqd.tlsConf)
-	tlsConn.SetDeadline(time.Now().Add(5 * time.Second))
-	err := tlsConn.Handshake()
-	if err != nil {
-		return err
-	}
-	client.tlsConn = tlsConn
-
-	client.Reader = bufio.NewReaderSize(client.tlsConn, common.DefaultBufferSize)
-	client.Writer = bufio.NewWriterSize(client.tlsConn, common.DefaultBufferSize)
-
-	atomic.StoreInt32(&client.TLS, 1)
-
-	return nil
 }

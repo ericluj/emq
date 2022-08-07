@@ -2,8 +2,6 @@ package emqcli
 
 import (
 	"bytes"
-	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,17 +17,14 @@ import (
 )
 
 type msgResponse struct {
-	msg     *Message
-	cmd     *command.Command
-	success bool
-	backoff bool
+	// msg *Message
+	// cmd *command.Command
 }
 
 type Conn struct {
 	addr     string
 	conn     *net.TCPConn
 	delegate ConnDelegate
-	tlsConn  *tls.Conn
 
 	r io.Reader
 	w io.Writer
@@ -57,19 +52,28 @@ func NewConn(addr string, delegate ConnDelegate) *Conn {
 }
 
 func (c *Conn) Write(p []byte) (int, error) {
-	c.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
+	err := c.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
+	if err != nil {
+		return 0, err
+	}
 	return c.w.Write(p)
 }
 
 func (c *Conn) Read(p []byte) (int, error) {
-	c.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+	err := c.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+	if err != nil {
+		return 0, err
+	}
 	return c.r.Read(p)
 }
 
 func (c *Conn) Close() error {
 	atomic.StoreInt32(&c.closeFlag, 1)
 	if c.conn != nil {
-		c.conn.CloseRead()
+		err := c.conn.CloseRead()
+		if err != nil {
+			return err
+		}
 	}
 
 	c.wg.Wait()
@@ -112,29 +116,6 @@ func (c *Conn) identify() error {
 	// 	return err
 	// }
 
-	return nil
-}
-
-func (c *Conn) upgradeTLS() error {
-	conf := &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	c.tlsConn = tls.Client(c.conn, conf)
-	err := c.tlsConn.Handshake()
-	if err != nil {
-		return err
-	}
-
-	c.r = c.tlsConn
-	c.w = c.tlsConn
-
-	frameType, data, err := ReadUnpackedResponse(c)
-	if err != nil {
-		return err
-	}
-	if frameType != common.FrameTypeResponse || !bytes.Equal(data, common.OKBytes) {
-		return errors.New("invalid response from TLS upgrade")
-	}
 	return nil
 }
 

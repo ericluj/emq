@@ -34,7 +34,10 @@ func (s *TCPServer) Handle(conn net.Conn) {
 	case common.ProtoMagic:
 		prot = &LookupProtocol{emqlookupd: s.emqlookupd}
 	default:
-		protocol.SendResponse(conn, common.BadProtocolBytes)
+		err = protocol.SendResponse(conn, common.BadProtocolBytes)
+		if err != nil {
+			log.Infof("client(%s) SendResponse error: %v", conn.RemoteAddr(), err)
+		}
 		conn.Close()
 		log.Infof("client(%s) bad protocol magic '%s'", conn.RemoteAddr(), pm)
 		return

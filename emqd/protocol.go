@@ -71,12 +71,13 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 			line = line[:len(line)-1]
 		}
 		params := bytes.Split(line, common.SeparatorBytes)
-		log.Infof("PROTOCOL: [%s] %s", client.RemoteAddr(), params)
+		log.Infof("PROTOCOL: [%v] %s", client.RemoteAddr(), params)
 
 		var response []byte
 		response, err = p.Exec(client, params)
 		if err != nil {
 			// TODO: 处理内部error
+			log.Infof("error: %v", err)
 		}
 		if response != nil {
 			err = p.Send(client, common.FrameTypeResponse, response)
@@ -144,7 +145,7 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("IDENTIFY failed to decode JSON body")
 	}
 
-	log.Infof("PROTOCOL: [%s] %+v", client, identifyData)
+	log.Infof("PROTOCOL: [%v] %+v", client, identifyData)
 
 	// TODO: 这里是需要有一些identify的数据处理返回的
 
@@ -273,10 +274,10 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 	}
 
 exit:
-	log.Infof("PROTOCOL: [%s] exiting messagePump", client)
+	log.Infof("PROTOCOL: [%v] exiting messagePump", client)
 	// TODO: 一些结束操作
 	if err != nil {
-		log.Infof("PROTOCOL: [%s] messagePump error - %s", client, err)
+		log.Infof("PROTOCOL: [%v] messagePump error - %s", client, err)
 	}
 }
 

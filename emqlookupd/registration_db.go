@@ -2,7 +2,6 @@ package emqlookupd
 
 import (
 	"sync"
-	"time"
 )
 
 type RegiostrationDB struct {
@@ -18,9 +17,9 @@ type Registration struct {
 type Registrations []Registration
 
 type Producer struct {
-	peerInfo     *PeerInfo
-	tombstoned   bool
-	tombstonedAt time.Time
+	peerInfo *PeerInfo
+	// tombstoned   bool
+	// tombstonedAt time.Time
 }
 type Producers []*Producer
 type ProducerMap map[string]*Producer
