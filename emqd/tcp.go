@@ -41,7 +41,10 @@ func (t *TCPServer) Handle(conn net.Conn) {
 	case common.ProtoMagic:
 		prot = &Protocol{emqd: t.emqd}
 	default:
-		protocol.SendFramedResponse(conn, common.FrameTypeError, common.BadProtocolBytes)
+		_, err := protocol.SendFramedResponse(conn, common.FrameTypeError, common.BadProtocolBytes)
+		if err != nil {
+			log.Infof("error: %v", err)
+		}
 		conn.Close()
 		log.Infof("client(%s) bad protocol magic '%s'", conn.RemoteAddr(), pm)
 		return

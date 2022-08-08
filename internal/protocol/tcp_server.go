@@ -22,8 +22,8 @@ func TCPServer(listener net.Listener, handler TCPHandler) error {
 	for {
 		clientConn, err := listener.Accept()
 		if err != nil {
-			if nerr, ok := err.(net.Error); ok && nerr.Temporary() {
-				log.Infof("temporary Accept() failure - %s", err)
+			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				log.Infof("timeout - %v", err)
 				// 如果是超时等临时错误，先暂停当前goruntine交出调度，时间片轮转到后再恢复后续操作
 				runtime.Gosched()
 				continue

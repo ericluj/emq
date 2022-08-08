@@ -25,7 +25,10 @@ func (e *EMQD) lookupLoop() {
 
 				log.Infof("LOOKUP(%s): adding peer", host)
 				lookupPeer := NewLookupPeer(host)
-				lookupPeer.Command(nil) // 开启连接
+				_, err := lookupPeer.Command(nil) // 开启连接
+				if err != nil {
+					log.Infof("error: %v", err)
+				}
 				lookupPeers = append(lookupPeers, lookupPeer)
 				lookupAddrs = append(lookupAddrs, host)
 			}
@@ -50,10 +53,10 @@ func (e *EMQD) lookupLoop() {
 				cmd    *command.Command
 				branch string
 			)
-			switch val.(type) {
+			switch v := val.(type) {
 			case *Channel:
 				branch = "channel"
-				channel := val.(*Channel)
+				channel := v
 				if channel.Exiting() {
 					cmd = command.RegisterCmd(channel.topicName, channel.name)
 				} else {
@@ -61,7 +64,7 @@ func (e *EMQD) lookupLoop() {
 				}
 			case *Topic:
 				branch = "topic"
-				topic := val.(*Topic)
+				topic := v
 				if topic.Exiting() {
 					cmd = command.RegisterCmd(topic.name, "")
 				} else {

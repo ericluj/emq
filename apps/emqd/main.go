@@ -36,7 +36,7 @@ func (p *program) Start() error {
 	go func() {
 		err := p.emqd.Main()
 		if err != nil {
-			p.Stop()
+			_ = p.Stop()
 			log.Fatalf("p.emqd.Main fatal: %v", err)
 		}
 	}()

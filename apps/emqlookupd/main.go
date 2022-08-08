@@ -36,7 +36,7 @@ func (p *program) Start() error {
 	go func() {
 		err := p.emqlookupd.Main()
 		if err != nil {
-			p.Stop()
+			_ = p.Stop()
 			log.Fatalf("p.emqlookupd.Main fatal: %v", err)
 		}
 	}()

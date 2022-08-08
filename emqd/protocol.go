@@ -52,7 +52,11 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 
 	// 接受cmd并执行操作
 	for {
-		client.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+		err = client.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+		if err != nil {
+			log.Infof("error: %v", err)
+			break
+		}
 
 		line, err = client.Reader.ReadSlice('\n')
 		if err != nil {

@@ -7,8 +7,7 @@ import (
 )
 
 type Client struct {
-	emqd *EMQD
-	ID   int64
+	ID int64
 
 	net.Conn
 	Reader *bufio.Reader

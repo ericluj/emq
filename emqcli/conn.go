@@ -188,7 +188,10 @@ func (c *Conn) close() {
 	c.exitOnce.Do(func() {
 		log.Infof("beginning close")
 		close(c.exitChan)
-		c.conn.CloseRead()
+		err := c.conn.CloseRead()
+		if err != nil {
+			log.Infof("error: %v", err)
+		}
 	})
 
 }

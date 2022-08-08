@@ -42,12 +42,18 @@ func (lp *LookupPeer) Connect() error {
 }
 
 func (lp *LookupPeer) Write(data []byte) (int, error) {
-	lp.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
+	err := lp.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
+	if err != nil {
+		return 0, err
+	}
 	return lp.conn.Write(data)
 }
 
 func (lp *LookupPeer) Read(data []byte) (int, error) {
-	lp.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+	err := lp.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+	if err != nil {
+		return 0, err
+	}
 	return lp.conn.Read(data)
 }
 
