@@ -17,7 +17,7 @@ type program struct {
 func main() {
 	prg := &program{}
 	if err := svc.Run(prg, syscall.SIGINT, syscall.SIGTERM); err != nil {
-		log.Fatalf("svc run fatal: %v", err)
+		log.Fatalf("Run fatal: %v", err)
 	}
 }
 
@@ -25,19 +25,28 @@ func (p *program) Init(env svc.Environment) error {
 	opts := emqd.NewOptions()
 	emqd, err := emqd.NewEMQD(opts)
 	if err != nil {
-		log.Fatalf("emqd.NewEMQD fatal: %v", err)
+		log.Fatalf("NewEMQD fatal: %v", err)
 	}
 	p.emqd = emqd
 	return nil
 }
 
 func (p *program) Start() error {
+	err := p.emqd.LoadMetadata()
+	if err != nil {
+		log.Fatalf("LoadMetadata fatal: %v", err)
+	}
+
+	err = p.emqd.PersistMetadata()
+	if err != nil {
+		log.Fatalf("PersistMetadata fatal: %v", err)
+	}
 
 	go func() {
 		err := p.emqd.Main()
 		if err != nil {
 			_ = p.Stop()
-			log.Fatalf("p.emqd.Main fatal: %v", err)
+			log.Fatalf("Main fatal: %v", err)
 		}
 	}()
 

@@ -17,13 +17,14 @@ type EMQD struct {
 	mtx  sync.RWMutex
 	wg   util.WaitGroup
 
-	exitChan  chan int // 程序退出信号
-	isLoading int32
+	idGenerator int64
+	isLoading   int32
 
-	lookupPeers      atomic.Value
-	notifyChan       chan interface{} // 通知lookupd信号
-	topicMap         map[string]*Topic
-	clientIDSequence int64
+	topicMap    map[string]*Topic
+	lookupPeers atomic.Value
+
+	exitChan   chan int         // 程序退出信号
+	notifyChan chan interface{} // 通知信号
 
 	tcpListener  net.Listener
 	httpListener net.Listener
@@ -40,11 +41,11 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 	var err error
 	e.tcpListener, err = net.Listen("tcp", opts.TCPAddress)
 	if err != nil {
-		return nil, fmt.Errorf("listen (%s) failed - %s", opts.TCPAddress, err)
+		return nil, fmt.Errorf("listen %s error: %v", opts.TCPAddress, err)
 	}
 	e.httpListener, err = net.Listen("tcp", opts.HTTPAddress)
 	if err != nil {
-		return nil, fmt.Errorf("listen (%s) failed - %s", opts.HTTPAddress, err)
+		return nil, fmt.Errorf("listen %s error: %v", opts.HTTPAddress, err)
 	}
 	e.tcpServer = &TCPServer{emqd: e}
 
@@ -53,12 +54,12 @@ func NewEMQD(opts *Options) (*EMQD, error) {
 }
 
 func (e *EMQD) Main() error {
-	exitCh := make(chan error)
 	var once sync.Once
+	exitCh := make(chan error)
 	exitFunc := func(err error) {
 		once.Do(func() {
 			if err != nil {
-				log.Infof("error: %v", err)
+				log.Infof("exitFunc error: %v", err)
 			}
 			exitCh <- err
 		})
@@ -77,6 +78,7 @@ func (e *EMQD) Main() error {
 	// lookupLoop
 	e.wg.Wrap(e.lookupLoop)
 
+	// Main方法被阻塞，直到server有错误的时候往下返回err
 	err := <-exitCh
 	return err
 }
@@ -107,31 +109,46 @@ func (e *EMQD) Exit() {
 	// 等待goruntine都处理完毕
 	e.wg.Wait()
 
-	log.Infof("EMQ: bye")
-}
-
-func (e *EMQD) Notify(v interface{}) {
-	e.wg.Wrap(func() {
-		select {
-		// 避免阻止exit
-		case <-e.exitChan:
-		case e.notifyChan <- v:
-			if atomic.LoadInt32(&e.isLoading) == 1 {
-				return
-			}
-
-			// TODO: 数据持久化
-		}
-	})
+	log.Infof("EMQD exit")
 }
 
 func (e *EMQD) getOpts() *Options {
 	return e.opts.Load().(*Options)
 }
 
+// EMQD中的数据发生了变化
+func (e *EMQD) Notify(v interface{}) {
+	e.wg.Wrap(func() {
+		select {
+		case <-e.exitChan: // 避免阻止exit（可能的死锁问题）
+		case e.notifyChan <- v:
+			// 加载中不需要持久化
+			if atomic.LoadInt32(&e.isLoading) == 1 {
+				return
+			}
+
+			e.mtx.Lock()
+			err := e.PersistMetadata()
+			if err != nil {
+				log.Infof("PersistMetadata error: %v", err)
+			}
+			e.mtx.Unlock()
+		}
+	})
+}
+
 func (e *EMQD) LoadMetadata() error {
-	atomic.StoreInt32(&e.isLoading, 1)       // 数据加载中
-	defer atomic.StoreInt32(&e.isLoading, 0) // 加载完毕变成初始状态
+	atomic.StoreInt32(&e.isLoading, 1) // 数据加载中
+	defer atomic.StoreInt32(&e.isLoading, 0)
+
+	// TODO: 执行逻辑
+
+	return nil
+}
+
+func (e *EMQD) PersistMetadata() error {
+
+	// TODO: 执行逻辑
 
 	return nil
 }
@@ -156,12 +173,14 @@ func (e *EMQD) GetTopic(topicName string) *Topic {
 	t = NewTopic(topicName, e)
 	e.topicMap[topicName] = t
 	e.mtx.Unlock()
-	log.Infof("TOPIC(%s): created", t.name)
+	log.Infof("topic: %s, created", t.name)
 
 	// 如果是在加载数据中，那么不需要进行后面的初始化操作
 	if atomic.LoadInt32(&e.isLoading) == 1 {
 		return t
 	}
+
+	// TODO: lookupd相关操作
 
 	t.Start()
 	return t

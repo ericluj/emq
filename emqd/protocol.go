@@ -21,14 +21,8 @@ type Protocol struct {
 }
 
 func (p *Protocol) NewClient(conn net.Conn) protocol.Client {
-	clientID := atomic.AddInt64(&p.emqd.clientIDSequence, 1)
-	c := &Client{
-		ID:           clientID,
-		conn:         conn,
-		ExitChan:     make(chan int),
-		SubEventChan: make(chan *Channel, 1),
-	}
-	c.lenSlice = c.lenBuf[:]
+	id := atomic.AddInt64(&p.emqd.idGenerator, 1)
+	c := NewClient(id, conn)
 	return c
 }
 

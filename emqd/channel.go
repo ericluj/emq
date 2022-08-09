@@ -20,6 +20,14 @@ type Channel struct {
 	clients       map[int64]*Client
 }
 
+func (c *Channel) GetName() string {
+	return c.name
+}
+
+func (c *Channel) GetMemoryMsgChan() chan *Message {
+	return c.memoryMsgChan
+}
+
 func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 	c := &Channel{
 		topicName:     topicName,

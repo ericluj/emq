@@ -7,10 +7,10 @@ import (
 )
 
 func TestMain(t *testing.T) {
-	startEMQD(t)
+	StartEMQD(t)
 }
 
-func startEMQD(t *testing.T) *emqd.EMQD {
+func StartEMQD(t *testing.T) *emqd.EMQD {
 	opts := emqd.NewOptions()
 	e, err := emqd.NewEMQD(opts)
 	if err != nil {
