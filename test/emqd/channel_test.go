@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ericluj/emq/emqd"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPutMessage(t *testing.T) {
@@ -20,10 +21,6 @@ func TestPutMessage(t *testing.T) {
 	_ = topic.PutMessage(msg)
 
 	outputMsg := <-channel.GetMemoryMsgChan()
-	if outputMsg.ID != id {
-		t.Error("id error")
-	}
-	if string(outputMsg.Body) != body {
-		t.Error("id error")
-	}
+	assert.Equal(t, id, outputMsg.ID)
+	assert.Equal(t, body, outputMsg.Body)
 }

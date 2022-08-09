@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ericluj/emq/emqd"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(t *testing.T) {
@@ -13,15 +14,11 @@ func TestMain(t *testing.T) {
 func StartEMQD(t *testing.T) *emqd.EMQD {
 	opts := emqd.NewOptions()
 	e, err := emqd.NewEMQD(opts)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 
 	go func() {
 		err = e.Main()
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 	}()
 
 	return e

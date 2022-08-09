@@ -2,18 +2,16 @@ package emqd
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetTopic(t *testing.T) {
 	e := StartEMQD(t)
 	topicName := "test"
 	topic := e.GetTopic(topicName)
-	if topic == nil {
-		t.Error("topic nil")
-	}
-	if topic.GetName() != topicName {
-		t.Error("topic name error")
-	}
+	assert.NotNil(t, e)
+	assert.Equal(t, topicName, topic.GetName())
 }
 
 func TestGetChannel(t *testing.T) {
@@ -23,10 +21,6 @@ func TestGetChannel(t *testing.T) {
 
 	channelName := "ch"
 	channel := topic.GetChannel(channelName)
-	if channel == nil {
-		t.Error("channel nil")
-	}
-	if channel.GetName() != channelName {
-		t.Error("channel name error")
-	}
+	assert.NotNil(t, e)
+	assert.Equal(t, channelName, channel.GetName())
 }
