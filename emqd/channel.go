@@ -57,7 +57,7 @@ func (c *Channel) exit(deleted bool) error {
 
 	c.mtx.RLock()
 	for _, client := range c.clients {
-		client.Close()
+		client.conn.Close()
 	}
 	c.mtx.RUnlock()
 

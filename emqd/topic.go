@@ -28,6 +28,10 @@ type Topic struct {
 	MessageID uint64
 }
 
+func (t *Topic) GetName() string {
+	return t.name
+}
+
 func NewTopic(topicName string, emqd *EMQD) *Topic {
 	t := &Topic{
 		name:              topicName,

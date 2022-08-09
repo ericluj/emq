@@ -1,7 +1,6 @@
 package emqd
 
 import (
-	"bufio"
 	"net"
 	"sync"
 )
@@ -9,9 +8,7 @@ import (
 type Client struct {
 	ID int64
 
-	net.Conn
-	Reader *bufio.Reader
-	Writer *bufio.Writer
+	conn net.Conn
 
 	Channel      *Channel      // client订阅的channel
 	SubEventChan chan *Channel // 事件，说明client有订阅
@@ -25,4 +22,8 @@ type Client struct {
 }
 
 type identifyData struct {
+}
+
+func (c *Client) Close() error {
+	return c.conn.Close()
 }
