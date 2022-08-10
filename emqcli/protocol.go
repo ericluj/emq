@@ -9,7 +9,7 @@ import (
 )
 
 func ReadUnpackedResponse(r io.Reader) (int32, []byte, error) {
-	resp, err := protocol.ReadResponse(r)
+	resp, err := protocol.ReadData(r)
 	if err != nil {
 		return -1, nil, err
 	}

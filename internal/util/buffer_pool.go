@@ -1,4 +1,4 @@
-package emqd
+package util
 
 import (
 	"bytes"
@@ -13,11 +13,11 @@ func init() {
 	}
 }
 
-func bufferPoolGet() *bytes.Buffer {
+func BufferPoolGet() *bytes.Buffer {
 	return bp.Get().(*bytes.Buffer)
 }
 
-func bufferPoolPut(b *bytes.Buffer) {
+func BufferPoolPut(b *bytes.Buffer) {
 	b.Reset()
 	bp.Put(b)
 }

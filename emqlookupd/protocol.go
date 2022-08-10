@@ -53,7 +53,7 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		}
 
 		if response != nil {
-			err = protocol.SendResponse(client, response)
+			err = protocol.SendData(client, response)
 			if err != nil {
 				break
 			}

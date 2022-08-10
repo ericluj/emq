@@ -91,12 +91,12 @@ func (lp *LookupPeer) Command(cmd *command.Command) ([]byte, error) {
 		return nil, nil
 	}
 
-	if _, err := cmd.WriteTo(lp); err != nil {
+	if err := cmd.Write(lp); err != nil {
 		lp.Close()
 		return nil, err
 	}
 
-	resp, err := protocol.ReadResponse(lp)
+	resp, err := protocol.ReadData(lp)
 	if err != nil {
 		lp.Close()
 		return nil, err

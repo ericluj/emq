@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"fmt"
 	"net"
 	"runtime"
 	"strings"
@@ -23,14 +22,15 @@ func TCPServer(listener net.Listener, handler TCPHandler) error {
 		clientConn, err := listener.Accept()
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				log.Infof("timeout - %v", err)
+				log.Infof("network timeout error: %v", err)
 				// 如果是超时等临时错误，先暂停当前goruntine交出调度，时间片轮转到后再恢复后续操作
 				runtime.Gosched()
 				continue
 			}
 
 			if !strings.Contains(err.Error(), "use of closed network connection") {
-				return fmt.Errorf("listener.Accept() error - %s", err)
+				log.Infof("network error: %v", err)
+				return err
 			}
 
 			break

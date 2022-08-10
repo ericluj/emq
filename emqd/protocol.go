@@ -13,6 +13,7 @@ import (
 	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
 	"github.com/ericluj/emq/internal/protocol"
+	"github.com/ericluj/emq/internal/util"
 )
 
 // 协议结构体 用来组织emqd和client的关联处理
@@ -154,8 +155,8 @@ exit:
 func (p *Protocol) SendMessage(client *Client, msg *Message) error {
 	log.Infof("PROTOCOL: writing msg(%s) to client(%d) - %s", msg.ID, client.ID, msg.Body)
 
-	buf := bufferPoolGet()
-	defer bufferPoolPut(buf)
+	buf := util.BufferPoolGet()
+	defer util.BufferPoolPut(buf)
 
 	// 构造数据流
 	_, err := msg.WriteTo(buf)
@@ -176,7 +177,7 @@ func (p *Protocol) Send(client *Client, frameType int32, data []byte) error {
 	client.writeLock.Lock()
 	defer client.writeLock.Unlock()
 
-	_, err := protocol.SendFramedResponse(client.conn, frameType, data)
+	err := protocol.SendFrameData(client.conn, frameType, data)
 	if err != nil {
 		return err
 	}

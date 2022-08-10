@@ -1,7 +1,6 @@
 package http_api
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -18,7 +17,8 @@ func Serve(listener net.Listener, handler http.Handler) error {
 
 	err := server.Serve(listener)
 	if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-		return fmt.Errorf("http.Serve() error - %s", err)
+		log.Infof("network error: %v", err)
+		return err
 	}
 
 	log.Infof("HTTP: closing %s", listener.Addr())

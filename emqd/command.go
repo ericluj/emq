@@ -1,7 +1,6 @@
 package emqd
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,16 +8,8 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/protocol"
 )
-
-func readLen(r io.Reader, tmp []byte) (int32, error) {
-	_, err := io.ReadFull(r, tmp) // 读取len(tmp)长度的数据
-	if err != nil {
-		return 0, err
-	}
-	// 大端字节序将其转换为数字
-	return int32(binary.BigEndian.Uint32(tmp)), nil
-}
 
 func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 	var err error
@@ -27,7 +18,7 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("cannot IDENTIFY in current state")
 	}
 
-	bodyLen, err := readLen(client.conn, client.lenSlice)
+	bodyLen, err := protocol.ReadDataSize(client.conn)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTIFY failed to read body size")
 	}
@@ -56,13 +47,6 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 
 	// TODO: 这里是需要有一些identify的数据处理返回的
 
-	// tls协议
-	// log.Infof("PROTOCOL: [%s] upgrading connection to TLS", client)
-	// err = client.UpgradeTLS()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("IDENTIFY failed " + err.Error())
-	// }
-
 	err = p.Send(client, common.FrameTypeResponse, common.OKBytes)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTIFY failed " + err.Error())
@@ -77,7 +61,7 @@ func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {
 	}
 	topicName := string(params[1])
 
-	bodyLen, err := readLen(client.conn, client.lenSlice)
+	bodyLen, err := protocol.ReadDataSize(client.conn)
 	if err != nil {
 		return nil, fmt.Errorf("PUB failed to read message body size")
 	}

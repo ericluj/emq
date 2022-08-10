@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	FrameTypeResponse int32 = 0
-	FrameTypeError    int32 = 1
-	FrameTypeMessage  int32 = 2
+	FrameTypeResponse int32 = iota
+	FrameTypeError
+	FrameTypeMessage
 )
 
 const (
@@ -31,6 +31,7 @@ var (
 
 var (
 	ProtoMagic        = "  V1"
+	ProtoMagicLen     = 4 // ProtoMagic的长度
 	DefaultBufferSize = 16 * 1024
 )
 

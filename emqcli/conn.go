@@ -199,7 +199,7 @@ func (c *Conn) close() {
 func (c *Conn) WriteCommand(cmd *command.Command) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	if _, err := cmd.WriteTo(c); err != nil {
+	if err := cmd.Write(c); err != nil {
 		log.Infof("WriteCommand error: %v, cmd: %v", err, cmd)
 		return err
 	}
