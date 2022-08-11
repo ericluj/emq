@@ -1,13 +1,20 @@
 package emqlookupd
 
 import (
-	"bufio"
 	"net"
 )
 
 type Client struct {
-	net.Conn
-	Reader   *bufio.Reader
-	Writer   *bufio.Writer
+	conn     net.Conn
 	peerInfo *PeerInfo
+}
+
+func NewClient(conn net.Conn) *Client {
+	return &Client{
+		conn: conn,
+	}
+}
+
+func (c *Client) Close() error {
+	return c.conn.Close()
 }

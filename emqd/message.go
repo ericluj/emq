@@ -2,19 +2,19 @@ package emqd
 
 import (
 	"encoding/binary"
-	"io"
 	"time"
 
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type MessageID [common.MsgIDLength]byte
 
 type Message struct {
 	ID        MessageID
-	Body      []byte
 	Timestamp int64
 	Attempts  uint16
+	Body      []byte
 }
 
 func NewMessage(id MessageID, body []byte) *Message {
@@ -25,32 +25,30 @@ func NewMessage(id MessageID, body []byte) *Message {
 	}
 }
 
-func (m *Message) WriteTo(w io.Writer) (int64, error) {
-	var (
-		total int64
-		buf   [10]byte
-	)
+// 构造message数据流
+func (m *Message) Bytes() ([]byte, error) {
+	buf := util.BufferPoolGet()
+	defer util.BufferPoolPut(buf)
 
-	binary.BigEndian.PutUint64(buf[:8], uint64(m.Timestamp))
-	binary.BigEndian.PutUint16(buf[8:], uint16(m.Attempts))
-
-	n, err := w.Write(buf[:])
-	total += int64(n)
+	err := binary.Write(buf, binary.BigEndian, uint64(m.Timestamp))
 	if err != nil {
-		return total, err
+		return nil, err
 	}
 
-	n, err = w.Write(m.ID[:])
-	total += int64(n)
+	err = binary.Write(buf, binary.BigEndian, m.Attempts)
 	if err != nil {
-		return total, err
+		return nil, err
 	}
 
-	n, err = w.Write(m.Body)
-	total += int64(n)
+	_, err = buf.Write(m.ID[:])
 	if err != nil {
-		return total, err
+		return nil, err
 	}
 
-	return total, nil
+	_, err = buf.Write(m.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
