@@ -9,15 +9,15 @@ import (
 )
 
 type Channel struct {
-	emqd      *EMQD
+	emqd *EMQD
+	mtx  sync.RWMutex
+
 	topicName string
 	name      string
-	mtx       sync.RWMutex
-
-	isExiting int32
+	clients   map[int64]*Client
 
 	memoryMsgChan chan *Message
-	clients       map[int64]*Client
+	isExiting     int32
 }
 
 func (c *Channel) GetName() string {
@@ -30,11 +30,11 @@ func (c *Channel) GetMemoryMsgChan() chan *Message {
 
 func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 	c := &Channel{
+		emqd:          emqd,
 		topicName:     topicName,
 		name:          channelName,
-		emqd:          emqd,
-		memoryMsgChan: make(chan *Message, emqd.getOpts().MemQueueSize),
 		clients:       make(map[int64]*Client),
+		memoryMsgChan: make(chan *Message, emqd.getOpts().MemQueueSize),
 	}
 
 	c.emqd.Notify(c) // 通知lookupd
@@ -50,17 +50,21 @@ func (c *Channel) Close() error {
 	return c.exit(false)
 }
 
+func (c *Channel) Exiting() bool {
+	return atomic.LoadInt32(&c.isExiting) == 1
+}
+
 func (c *Channel) exit(deleted bool) error {
 	// 避免重复调用
 	if !atomic.CompareAndSwapInt32(&c.isExiting, 0, 1) {
-		return errors.New("exiting")
+		return errors.New("can not exit")
 	}
 
 	if deleted {
-		log.Infof("CHANNEL(%s): deleting", c.name)
+		log.Infof("channel: %s, deleting", c.name)
 		c.emqd.Notify(c) // 通知lookupd
 	} else {
-		log.Infof("CHANNEL(%s): closing", c.name)
+		log.Infof("channel: %s, closing", c.name)
 	}
 
 	c.mtx.RLock()
@@ -69,25 +73,50 @@ func (c *Channel) exit(deleted bool) error {
 	}
 	c.mtx.RUnlock()
 
+	if deleted {
+		c.Empty()
+	}
+
+	// TODO: 待处理
 	return nil
 }
 
-func (c *Channel) Exiting() bool {
-	return atomic.LoadInt32(&c.isExiting) == 1
+// 清空数据
+func (c *Channel) Empty() {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	for {
+		select {
+		case <-c.memoryMsgChan:
+		default:
+			return
+		}
+	}
 }
 
 func (c *Channel) PutMessage(msg *Message) error {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+
+	if c.Exiting() {
+		return errors.New("can not PutMessage")
+	}
+
 	select {
 	case c.memoryMsgChan <- msg:
 	default:
-		// TODO:落磁盘
+		break
 	}
+
+	// TODO: 写入磁盘
+
 	return nil
 }
 
 func (c *Channel) AddClient(client *Client) error {
 	if c.Exiting() {
-		return errors.New("exiting")
+		return errors.New("can not AddClient")
 	}
 
 	c.mtx.RLock()
@@ -123,6 +152,4 @@ func (c *Channel) RemoveClient(clientID int64) {
 	c.mtx.Lock()
 	delete(c.clients, clientID)
 	c.mtx.Unlock()
-
-	// TODO: 额外处理
 }

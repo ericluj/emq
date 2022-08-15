@@ -98,10 +98,10 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 	log.Infof("PROTOCOL: %s exiting IOLoop", client.conn.RemoteAddr())
 
 	// client关闭
-	close(client.ExitChan)
+	close(client.exitChan)
 	// 如果client有订阅channel，那么把关联关系删除
-	if client.Channel != nil {
-		client.Channel.RemoveClient(client.ID)
+	if client.channel != nil {
+		client.channel.RemoveClient(client.ID)
 	}
 
 	return err
@@ -132,8 +132,8 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 	for {
 		select {
 		// 订阅
-		case subChannel := <-client.SubEventChan:
-			client.SubEventChan = nil                // 订阅事件发生，置为nil让它不能再次订阅
+		case subChannel := <-client.subEventChan:
+			client.subEventChan = nil                // 订阅事件发生，置为nil让它不能再次订阅
 			memoryMsgChan = subChannel.memoryMsgChan // 用memoryMsgChan是为了防止空指针
 		// 获取消息
 		case msg := <-memoryMsgChan:
@@ -151,7 +151,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 				goto exit
 			}
 		// 退出
-		case <-client.ExitChan:
+		case <-client.exitChan:
 			return
 		}
 	}
@@ -178,8 +178,8 @@ func (p *Protocol) SendMessage(client *Client, msg *Message) error {
 }
 
 func (p *Protocol) Send(client *Client, frameType int32, data []byte) error {
-	client.writeLock.Lock()
-	defer client.writeLock.Unlock()
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
 
 	err := client.conn.SetWriteDeadline(time.Now().Add(common.HeartbeatTimeout))
 	if err != nil {

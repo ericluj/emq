@@ -13,17 +13,17 @@ import (
 
 type Topic struct {
 	emqd *EMQD
-	name string
 	mtx  sync.RWMutex
 	wg   util.WaitGroup
 
-	startChan chan int
-	exitChan  chan int
-	isExiting int32
+	name       string
+	channelMap map[string]*Channel
 
-	channelUpdateChan chan int
-	channelMap        map[string]*Channel
 	memoryMsgChan     chan *Message
+	channelUpdateChan chan int
+	startChan         chan int
+	exitChan          chan int
+	isExiting         int32
 
 	MessageID uint64
 }
@@ -34,13 +34,13 @@ func (t *Topic) GetName() string {
 
 func NewTopic(topicName string, emqd *EMQD) *Topic {
 	t := &Topic{
-		name:              topicName,
 		emqd:              emqd,
+		name:              topicName,
 		channelMap:        make(map[string]*Channel),
+		channelUpdateChan: make(chan int), // topic的channel修改
 		memoryMsgChan:     make(chan *Message, emqd.getOpts().MemQueueSize),
 		startChan:         make(chan int),
-		exitChan:          make(chan int), // topic关闭
-		channelUpdateChan: make(chan int), // topic的channel修改
+		exitChan:          make(chan int),
 	}
 
 	t.wg.Wrap(t.messagePump)
@@ -52,10 +52,7 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 
 // topic 执行所有逻辑的地方
 func (t *Topic) messagePump() {
-	var (
-		chans         []*Channel
-		memoryMsgChan chan *Message
-	)
+	var chans []*Channel
 
 	// 阻塞等待start
 	select {
@@ -65,19 +62,17 @@ func (t *Topic) messagePump() {
 	}
 
 	chans = t.GetChans()
-	memoryMsgChan = t.memoryMsgChan
-
 	for {
 		select {
 		// channel列表被修改了，重新获取
 		case <-t.channelUpdateChan:
 			chans = t.GetChans()
 		// 获取到msg，给所有channel发送
-		case msg := <-memoryMsgChan:
+		case msg := <-t.memoryMsgChan:
 			for _, channel := range chans {
 				err := channel.PutMessage(msg)
 				if err != nil {
-					log.Infof("TOPIC(%s) error: failed to put msg(%s) to channel(%s) - %s", t.name, msg.ID, channel.name, err)
+					log.Infof("PutMessage error: %v,topic: %s, channel: %s, msg: %s", err, t.name, channel.name, msg.ID)
 				}
 			}
 		case <-t.exitChan:
@@ -86,17 +81,19 @@ func (t *Topic) messagePump() {
 	}
 
 exit:
-	log.Infof("TOPIC(%s): closing ... messagePump", t.name)
+	log.Infof("topic: %s, exit messagePump", t.name)
 }
 
 func (t *Topic) Start() {
 	t.startChan <- 1
 }
 
+// 删除
 func (t *Topic) Delete() error {
 	return t.exit(true)
 }
 
+// 关闭，但不删除
 func (t *Topic) Close() error {
 	return t.exit(false)
 }
@@ -108,14 +105,14 @@ func (t *Topic) Exiting() bool {
 func (t *Topic) exit(deleted bool) error {
 	// 避免重复调用
 	if !atomic.CompareAndSwapInt32(&t.isExiting, 0, 1) {
-		return errors.New("exiting")
+		return errors.New("can not exit")
 	}
 
 	if deleted {
-		log.Infof("TOPIC(%s): deleting", t.name)
+		log.Infof("topic: %s, deleting", t.name)
 		t.emqd.Notify(t) // 通知lookupd
 	} else {
-		log.Infof("TOPIC(%s): closing", t.name)
+		log.Infof("topic: %s, closing", t.name)
 	}
 
 	close(t.exitChan)
@@ -126,11 +123,10 @@ func (t *Topic) exit(deleted bool) error {
 		t.mtx.Lock()
 		for _, channel := range t.channelMap {
 			delete(t.channelMap, channel.name)
-			channel.Close()
+			_ = channel.Delete()
 		}
 		t.mtx.Unlock()
 
-		// TODO: 删除files
 		return nil
 	}
 
@@ -171,7 +167,7 @@ func (t *Topic) GetChannel(channelName string) *Channel {
 	c = NewChannel(t.name, channelName, t.emqd)
 	t.channelMap[channelName] = c
 	t.mtx.Unlock()
-	log.Infof("TOPIC(%s): new channel(%s)", t.name, channelName)
+	log.Infof("topic: %s, new channel: %s", t.name, channelName)
 
 	select {
 	case t.channelUpdateChan <- 1: // 通知channel列表变化
@@ -181,6 +177,7 @@ func (t *Topic) GetChannel(channelName string) *Channel {
 	return c
 }
 
+// TODO:
 func (t *Topic) GenerateID() MessageID {
 	id := atomic.AddUint64(&t.MessageID, 1)
 	b := make([]byte, 8)              // 8bit一个字节，64位8字节
@@ -195,14 +192,16 @@ func (t *Topic) PutMessage(m *Message) error {
 	defer t.mtx.RUnlock()
 
 	if t.Exiting() {
-		return errors.New("exiting")
+		return errors.New("can not PutMessage")
 	}
 
 	select {
 	case t.memoryMsgChan <- m:
 	default:
-		// TODO: 如果写满了，放到磁盘
+		break
 	}
+
+	// TODO: 写入磁盘
 
 	return nil
 }
