@@ -18,19 +18,21 @@ func (e *EMQD) lookupLoop() {
 	ticker := time.NewTicker(time.Second * 15)
 	for {
 		if connect {
-			for _, host := range e.getOpts().LookupdTCPAddresses {
-				if util.InArr(host, lookupAddrs) {
+			for _, addr := range e.getOpts().LookupdTCPAddresses {
+				if util.InArr(addr, lookupAddrs) {
 					continue
 				}
 
-				log.Infof("LOOKUP(%s): adding peer", host)
-				lookupPeer := NewLookupPeer(host)
-				_, err := lookupPeer.Command(nil) // 开启连接
+				log.Infof("lookup: %s, adding peer", addr)
+				lookupPeer := NewLookupPeer(addr)
+				err := lookupPeer.Connect(e)
 				if err != nil {
-					log.Infof("error: %v", err)
+					log.Infof("Connect error: %v", err)
+					// TODO: 是否要抛error
+					return
 				}
 				lookupPeers = append(lookupPeers, lookupPeer)
-				lookupAddrs = append(lookupAddrs, host)
+				lookupAddrs = append(lookupAddrs, addr)
 			}
 			e.lookupPeers.Store(&lookupPeers)
 			connect = false
@@ -39,12 +41,12 @@ func (e *EMQD) lookupLoop() {
 		select {
 		case <-ticker.C:
 			// 心跳
-			for _, lookupPeer := range lookupPeers {
-				log.Infof("LOOKUPD(%v): sending heartbeat", lookupPeer)
+			for _, lp := range lookupPeers {
+				log.Infof("lookup: %s, sending heartbeat", lp.addr)
 				cmd := command.PingCmd()
-				_, err := lookupPeer.Command(cmd)
+				_, err := lp.Command(cmd)
 				if err != nil {
-					log.Infof("LOOKUPD(%v) error: %s - %s", lookupPeer, cmd, err)
+					log.Infof("lookup: %s, cmd: %s, error: %v", lp.addr, cmd, err)
 				}
 			}
 		case val := <-e.notifyChan:
@@ -58,25 +60,25 @@ func (e *EMQD) lookupLoop() {
 				branch = "channel"
 				channel := v
 				if channel.Exiting() {
-					cmd = command.RegisterCmd(channel.topicName, channel.name)
-				} else {
 					cmd = command.UnRegisterCmd(channel.topicName, channel.name)
+				} else {
+					cmd = command.RegisterCmd(channel.topicName, channel.name)
 				}
 			case *Topic:
 				branch = "topic"
 				topic := v
 				if topic.Exiting() {
-					cmd = command.RegisterCmd(topic.name, "")
-				} else {
 					cmd = command.UnRegisterCmd(topic.name, "")
+				} else {
+					cmd = command.RegisterCmd(topic.name, "")
 				}
 			}
 
-			for _, lookupPeer := range lookupPeers {
-				log.Infof("LOOKUPD(%v): %s %s", lookupPeer, branch, cmd)
-				_, err := lookupPeer.Command(cmd)
+			for _, lp := range lookupPeers {
+				log.Infof("lookup: %s, branch: %s, cmd: %s", lp.addr, branch, cmd)
+				_, err := lp.Command(cmd)
 				if err != nil {
-					log.Infof("LOOKUPD(%v): %s - %s", lookupPeer, cmd, err)
+					log.Infof("lookup: %s, branch: %s, cmd: %s, eror: %v", lp.addr, branch, cmd, err)
 				}
 			}
 		case <-e.exitChan:
@@ -85,5 +87,5 @@ func (e *EMQD) lookupLoop() {
 	}
 
 exit:
-	log.Infof("LOOKUP: closing")
+	log.Infof("lookupLoop: exit")
 }

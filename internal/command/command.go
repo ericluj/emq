@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/ericluj/emq/internal/common"
@@ -25,6 +26,14 @@ type Command struct {
 
 func PingCmd() *Command {
 	return &Command{Name: []byte(PING), Params: nil, Body: nil}
+}
+
+func IDENTIFYCmd(data map[string]interface{}) (*Command, error) {
+	bs, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return &Command{Name: []byte(IDENTIFY), Params: nil, Body: bs}, nil
 }
 
 func RegisterCmd(topic, channel string) *Command {

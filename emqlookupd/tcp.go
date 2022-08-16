@@ -15,48 +15,56 @@ type TCPServer struct {
 	conns      sync.Map
 }
 
-func (s *TCPServer) Handle(conn net.Conn) {
-	log.Infof("TCP: new client(%s)", conn.RemoteAddr())
+func (t *TCPServer) Handle(conn net.Conn) {
+	log.Infof("TCP: new client %s", conn.RemoteAddr())
 
-	buf := make([]byte, 4)
+	// 获取连接传过来的协议名是否正确（可以方便未来的协议升级）
+	buf := make([]byte, common.ProtoMagicLen)
 	_, err := io.ReadFull(conn, buf)
 	if err != nil {
-		log.Infof("failed to read protocol version - %s", err)
+		log.Infof("proto magic read error: %v", err)
 		conn.Close()
 		return
 	}
 
+	// 判断协议是否正确
 	pm := string(buf)
-	log.Infof("CLIENT(%s): desired protocol magic '%s'", conn.RemoteAddr(), pm)
+	if pm != common.ProtoMagic {
+		log.Infof("client %s: bad protocol magic '%s'", conn.RemoteAddr(), pm)
+		conn.Close()
+		return
+	}
+	log.Infof("client %s: desired protocol magic '%s'", conn.RemoteAddr(), pm)
 
 	var prot protocol.Protocol
 	switch pm {
 	case common.ProtoMagic:
-		prot = &LookupProtocol{emqlookupd: s.emqlookupd}
+		prot = &LookupProtocol{emqlookupd: t.emqlookupd}
 	default:
-		err = protocol.SendData(conn, common.BadProtocolBytes)
+		err := protocol.SendFrameData(conn, common.FrameTypeError, common.BadProtocolBytes)
 		if err != nil {
-			log.Infof("client(%s) SendResponse error: %v", conn.RemoteAddr(), err)
+			log.Infof("SendFrameData error: %v", err)
 		}
 		conn.Close()
-		log.Infof("client(%s) bad protocol magic '%s'", conn.RemoteAddr(), pm)
+		log.Infof("client %s: bad protocol magic '%s'", conn.RemoteAddr(), pm)
 		return
 	}
 
 	client := prot.NewClient(conn)
-	s.conns.Store(conn.RemoteAddr(), client)
+	t.conns.Store(conn.RemoteAddr(), client)
 
+	// client处理工作
 	err = prot.IOLoop(client)
 	if err != nil {
-		log.Infof("client(%s) - %s", conn.RemoteAddr(), err)
+		log.Infof("client %s error: %v", conn.RemoteAddr(), err)
 	}
 
-	s.conns.Delete(conn.RemoteAddr())
+	t.conns.Delete(conn.RemoteAddr())
 	client.Close()
 }
 
-func (s *TCPServer) Close() {
-	s.conns.Range(func(k, v interface{}) bool {
+func (t *TCPServer) Close() {
+	t.conns.Range(func(k, v interface{}) bool {
 		v.(protocol.Client).Close()
 		return true
 	})

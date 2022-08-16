@@ -1,7 +1,6 @@
 package emqd
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -15,7 +14,7 @@ type LookupPeer struct {
 	addr  string
 	conn  net.Conn
 	state int32
-	Info  PeerInfo
+	// info  PeerInfo
 }
 
 type PeerInfo struct {
@@ -31,13 +30,69 @@ func NewLookupPeer(addr string) *LookupPeer {
 	}
 }
 
-func (lp *LookupPeer) Connect() error {
-	log.Infof("LOOKUP connecting to %s", lp.addr)
+func (lp *LookupPeer) Connect(e *EMQD) error {
+	log.Infof("lookup connect to %s", lp.addr)
+
+	initialState := lp.state
+
+	// tcp连接
 	conn, err := net.DialTimeout("tcp", lp.addr, common.DialTimeout)
 	if err != nil {
 		return err
 	}
 	lp.conn = conn
+	lp.state = common.PeerConnected
+
+	// 如果不是第一次连接，不需要下面的逻辑
+	if initialState != common.PeerInit {
+		return nil
+	}
+
+	// 协议版本
+	_, err = lp.Write([]byte(common.ProtoMagic))
+	if err != nil {
+		lp.conn.Close()
+		return err
+	}
+
+	// identify
+	identifyData := map[string]interface{}{}
+	cmd, err := command.IDENTIFYCmd(identifyData)
+	if err != nil {
+		lp.Close()
+		return err
+	}
+	_, err = lp.Command(cmd)
+	if err != nil {
+		return err
+	}
+	// TODO: 返回数据待处理
+
+	// 注册到lookupd
+	var cmds []*command.Command
+	e.mtx.RLock()
+	for _, topic := range e.topicMap {
+		topic.mtx.RLock()
+		if len(topic.channelMap) == 0 {
+			cmds = append(cmds, command.RegisterCmd(topic.name, ""))
+		} else {
+			for _, channel := range topic.channelMap {
+				cmds = append(cmds, command.RegisterCmd(channel.topicName, channel.name))
+			}
+		}
+		topic.mtx.RUnlock()
+	}
+	e.mtx.RLock()
+
+	for _, cmd := range cmds {
+		log.Infof("lookup: %s, cmd: %v", lp.addr, cmd)
+		_, err := lp.Command(cmd)
+		if err != nil {
+			log.Infof("lookup: %s, cmd: %v, error: %v", lp.addr, cmd, err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -66,37 +121,12 @@ func (lp *LookupPeer) Close() error {
 }
 
 func (lp *LookupPeer) Command(cmd *command.Command) ([]byte, error) {
-	initalState := lp.state
-
-	// 没有连接的话进行connect
-	if initalState != common.PeerConnected {
-		if err := lp.Connect(); err != nil {
-			return nil, err
-		}
-		lp.state = common.PeerConnected
-		if _, err := lp.Write([]byte(common.ProtoMagic)); err != nil {
-			lp.conn.Close()
-			return nil, err
-		}
-
-		// TODO: connect callback
-
-		if lp.state != common.PeerConnected {
-			return nil, fmt.Errorf("lookupPeer connectCallback() failed")
-		}
-	}
-
-	// nil只需要进行connect
-	if cmd == nil {
-		return nil, nil
-	}
-
-	if err := cmd.Write(lp); err != nil {
+	if err := cmd.Write(lp.conn); err != nil {
 		lp.Close()
 		return nil, err
 	}
 
-	resp, err := protocol.ReadData(lp)
+	resp, err := protocol.ReadData(lp.conn)
 	if err != nil {
 		lp.Close()
 		return nil, err

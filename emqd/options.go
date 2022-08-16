@@ -15,8 +15,6 @@ type Options struct {
 	HTTPAddress         string
 	MemQueueSize        int64
 	MaxMsgSize          int64
-	TLSCert             string
-	TLSKey              string
 	LookupdTCPAddresses []string
 }
 
@@ -38,7 +36,5 @@ func NewOptions() *Options {
 		HTTPAddress:  "0.0.0.0:6002",
 		MemQueueSize: 10000,
 		MaxMsgSize:   1024 * 1024,
-		TLSCert:      "./test/certs/server.pem",
-		TLSKey:       "./test/certs/server.key",
 	}
 }
