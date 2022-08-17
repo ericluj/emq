@@ -1,13 +1,13 @@
-package emqd
+package test
 
 import (
 	"testing"
 
+	"github.com/ericluj/emq/emqd"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetTopic(t *testing.T) {
-	e := StartEMQD(t)
 	topicName := "test"
 	topic := e.GetTopic(topicName)
 	assert.NotNil(t, e)
@@ -15,7 +15,6 @@ func TestGetTopic(t *testing.T) {
 }
 
 func TestGetChannel(t *testing.T) {
-	e := StartEMQD(t)
 	topicName := "test"
 	topic := e.GetTopic(topicName)
 
@@ -23,4 +22,21 @@ func TestGetChannel(t *testing.T) {
 	channel := topic.GetChannel(channelName)
 	assert.NotNil(t, e)
 	assert.Equal(t, channelName, channel.GetName())
+}
+
+func TestPutMessage(t *testing.T) {
+	topicName := "test"
+	topic := e.GetTopic(topicName)
+
+	channelName := "ch"
+	channel := topic.GetChannel(channelName)
+
+	var id emqd.MessageID
+	body := "one"
+	msg := emqd.NewMessage(id, []byte(body))
+	_ = topic.PutMessage(msg)
+
+	outputMsg := <-channel.GetMemoryMsgChan()
+	assert.Equal(t, id, outputMsg.ID)
+	assert.Equal(t, body, string(outputMsg.Body))
 }
