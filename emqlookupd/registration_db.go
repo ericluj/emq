@@ -4,6 +4,12 @@ import (
 	"sync"
 )
 
+const (
+	CatagoryClient  = "client"
+	CatagoryTopic   = "topic"
+	CatagoryChannel = "channel"
+)
+
 type RegiostrationDB struct {
 	mtx             sync.RWMutex
 	registrationMap map[Registration]ProducerMap
@@ -23,16 +29,6 @@ type Producer struct {
 }
 type Producers []*Producer
 type ProducerMap map[string]*Producer
-
-type PeerInfo struct {
-	lastUpdate       int64
-	id               string
-	RemoteAddress    string
-	HostName         string
-	BroadcastAddress string
-	TCPPort          int
-	HTTPPort         int
-}
 
 func NewRegiostrationDB() *RegiostrationDB {
 	return &RegiostrationDB{

@@ -152,7 +152,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 			}
 		// 退出
 		case <-client.exitChan:
-			return
+			goto exit
 		}
 	}
 

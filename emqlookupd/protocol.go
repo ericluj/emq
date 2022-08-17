@@ -89,9 +89,9 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 
 	if client.peerInfo != nil {
 		registrations := l.emqlookupd.DB.LookupRegistrations(client.peerInfo.id)
-		for _, r := range registrations {
-			if removed, _ := l.emqlookupd.DB.RemoveProducer(r, client.peerInfo.id); removed {
-				log.Infof("DB: client %s, UNREGISTER category:%s key:%s subkey:%s", client.conn.RemoteAddr(), r.Category, r.Key, r.SubKey)
+		for _, reg := range registrations {
+			if removed, _ := l.emqlookupd.DB.RemoveProducer(reg, client.peerInfo.id); removed {
+				log.Infof("RemoveProducer client %s, category:%s key:%s subkey:%s", client.conn.RemoteAddr(), reg.Category, reg.Key, reg.SubKey)
 			}
 		}
 	}

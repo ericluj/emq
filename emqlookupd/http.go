@@ -52,14 +52,14 @@ func (s *HTTPServer) lookup(c *gin.Context) {
 		return
 	}
 
-	registrations := s.emqlookupd.DB.FindRegistrations("topic", topicName, "")
+	registrations := s.emqlookupd.DB.FindRegistrations(CatagoryTopic, topicName, "")
 	if len(registrations) == 0 {
 		c.JSON(http.StatusNotFound, NewErrResp("TOPIC_NOT_FOUND"))
 		return
 	}
 
-	channels := s.emqlookupd.DB.FindRegistrations("channel", topicName, "*").SubKeys()
-	producers := s.emqlookupd.DB.FindProducers("topic", topicName, "")
+	channels := s.emqlookupd.DB.FindRegistrations(CatagoryChannel, topicName, "*").SubKeys()
+	producers := s.emqlookupd.DB.FindProducers(CatagoryTopic, topicName, "")
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"channels":  channels,
@@ -68,7 +68,7 @@ func (s *HTTPServer) lookup(c *gin.Context) {
 }
 
 func (s *HTTPServer) topics(c *gin.Context) {
-	topics := s.emqlookupd.DB.FindProducers("topic", "*", "")
+	topics := s.emqlookupd.DB.FindRegistrations(CatagoryTopic, "*", "").Keys()
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"topics": topics,
@@ -82,7 +82,7 @@ func (s *HTTPServer) channels(c *gin.Context) {
 		return
 	}
 
-	channels := s.emqlookupd.DB.FindRegistrations("channel", topicName, "*").SubKeys()
+	channels := s.emqlookupd.DB.FindRegistrations(CatagoryChannel, topicName, "*").SubKeys()
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"channels": channels,

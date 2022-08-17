@@ -1,7 +1,6 @@
 package emqlookupd
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,13 +10,14 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/protocol"
 )
 
 func (l *LookupProtocol) PING(client *Client, params [][]byte) ([]byte, error) {
 	if client.peerInfo != nil {
 		cur := time.Unix(0, atomic.LoadInt64(&client.peerInfo.lastUpdate))
 		now := time.Now()
-		log.Infof("CLIENT(%v): pinged (last ping %s)", client.peerInfo.id, now.Sub(cur))
+		log.Infof("client: %s, pinged (last ping %s)", client.peerInfo.id, now.Sub(cur))
 		atomic.StoreInt64(&client.peerInfo.lastUpdate, now.UnixNano())
 	}
 	return common.OKBytes, nil
@@ -26,41 +26,45 @@ func (l *LookupProtocol) PING(client *Client, params [][]byte) ([]byte, error) {
 func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, error) {
 	var err error
 	if client.peerInfo != nil {
-		return nil, fmt.Errorf("can not IDENTIFY again")
+		return nil, fmt.Errorf("IDENTITY: can not again")
 	}
 
-	var bodyLen int32
-	err = binary.Read(client.conn, binary.BigEndian, &bodyLen)
+	bodyLen, err := protocol.ReadDataSize(client.conn)
 	if err != nil {
-		return nil, fmt.Errorf("IDENTIFY failed to read body size")
+		return nil, fmt.Errorf("IDENTITY: failed to read data size")
 	}
 
 	body := make([]byte, bodyLen)
 	_, err = io.ReadFull(client.conn, body)
 	if err != nil {
-		return nil, fmt.Errorf("IDENTIFY failed to read body")
+		return nil, fmt.Errorf("IDENTITY: failed to read body")
 	}
 
+	// 构造信息
 	peerInfo := PeerInfo{id: client.conn.RemoteAddr().String()}
 	err = json.Unmarshal(body, &peerInfo)
 	if err != nil {
-		return nil, fmt.Errorf("IDENTIFY failed to decode JSON body")
+		return nil, fmt.Errorf("IDENTIFY: failed to decode JSON body")
+	}
+
+	if peerInfo.BroadcastAddress == "" || peerInfo.TCPPort == 0 || peerInfo.HTTPPort == 0 {
+		return nil, fmt.Errorf("IDENTIFY: missing fields")
 	}
 
 	peerInfo.RemoteAddress = client.conn.RemoteAddr().String()
-
-	if peerInfo.BroadcastAddress == "" || peerInfo.TCPPort == 0 || peerInfo.HTTPPort == 0 {
-		return nil, fmt.Errorf("IDENTIFY missing fields")
-	}
-
 	atomic.StoreInt64(&peerInfo.lastUpdate, time.Now().UnixNano())
-
-	log.Infof("CLIENT(%v): IDENTIFY Address:%s TCP:%d HTTP:%d", client, peerInfo.BroadcastAddress, peerInfo.TCPPort, peerInfo.HTTPPort)
 
 	client.peerInfo = &peerInfo
 
-	if l.emqlookupd.DB.AddProducer(Registration{"client", "", ""}, &Producer{peerInfo: client.peerInfo}) {
-		log.Infof("DB: client(%v) REGISTER category:%s key:%s subkey:%s", client, "client", "", "")
+	log.Infof("IDENTIFY: client: %s, Address:%s, TCP: %d, HTTP: %d", peerInfo.id, peerInfo.BroadcastAddress, peerInfo.TCPPort, peerInfo.HTTPPort)
+
+	// 保存数据
+	producer := &Producer{peerInfo: client.peerInfo}
+	reg := Registration{
+		Category: CatagoryClient,
+	}
+	if l.emqlookupd.DB.AddProducer(reg, producer) {
+		log.Infof("IDENTIFY: AddProducer client: %s, category: %s, key: %s, subkey: %s", client.peerInfo.id, reg.Category, reg.Key, reg.SubKey)
 	}
 
 	data := make(map[string]interface{})
@@ -69,7 +73,7 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, erro
 
 	resp, err := json.Marshal(data)
 	if err != nil {
-		log.Infof("marshaling %v", data)
+		log.Infof("Marshal error: %v, data: %v", err, data)
 		return common.OKBytes, nil
 	}
 
@@ -78,11 +82,11 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, erro
 
 func (l *LookupProtocol) REGISTER(client *Client, params [][]byte) ([]byte, error) {
 	if client.peerInfo == nil {
-		return nil, fmt.Errorf("client must IDENTIFY")
+		return nil, fmt.Errorf("REGISTER: client must IDENTIFY")
 	}
 
 	if len(params) < 2 {
-		return nil, fmt.Errorf("REGISTER insufficient number of parameters")
+		return nil, fmt.Errorf("REGISTER: insufficient number of parameters")
 	}
 
 	topic := string(params[1])
@@ -92,25 +96,27 @@ func (l *LookupProtocol) REGISTER(client *Client, params [][]byte) ([]byte, erro
 	}
 
 	producer := &Producer{peerInfo: client.peerInfo}
+
+	// 注册topic
+	reg := Registration{
+		Category: CatagoryTopic,
+		Key:      topic,
+	}
+	if l.emqlookupd.DB.AddProducer(reg, producer) {
+		log.Infof("REGISTER: AddProducer client: %s, category: %s, key: %s, subkey: %s", client.peerInfo.id, reg.Category, reg.Key, reg.SubKey)
+	}
+
+	// 注册channel
 	if channel != "" {
-		key := Registration{
-			Category: "channel",
+		reg := Registration{
+			Category: CatagoryChannel,
 			Key:      topic,
 			SubKey:   channel,
 		}
 
-		if l.emqlookupd.DB.AddProducer(key, producer) {
-			log.Infof("DB: client(%v) REGISTER category:%s key:%s subkey:%s", client, "channel", topic, channel)
+		if l.emqlookupd.DB.AddProducer(reg, producer) {
+			log.Infof("REGISTER: AddProducer client: %s, category: %s, key: %s, subkey: %s", client.peerInfo.id, reg.Category, reg.Key, reg.SubKey)
 		}
-	}
-
-	key := Registration{
-		Category: "topic",
-		Key:      topic,
-		SubKey:   "",
-	}
-	if l.emqlookupd.DB.AddProducer(key, producer) {
-		log.Infof("DB: client(%v) REGISTER category:%s key:%s subkey:%s", client, "topic", topic, "")
 	}
 
 	return common.OKBytes, nil
@@ -118,11 +124,11 @@ func (l *LookupProtocol) REGISTER(client *Client, params [][]byte) ([]byte, erro
 
 func (l *LookupProtocol) UNREGISTER(client *Client, params [][]byte) ([]byte, error) {
 	if client.peerInfo == nil {
-		return nil, fmt.Errorf("client must IDENTIFY")
+		return nil, fmt.Errorf("UNREGISTER: client must IDENTIFY")
 	}
 
 	if len(params) < 2 {
-		return nil, fmt.Errorf("REGISTER insufficient number of parameters")
+		return nil, fmt.Errorf("UNREGISTER: insufficient number of parameters")
 	}
 
 	topic := string(params[1])
@@ -131,42 +137,45 @@ func (l *LookupProtocol) UNREGISTER(client *Client, params [][]byte) ([]byte, er
 		channel = string(params[2])
 	}
 
-	if channel != "" {
-		key := Registration{
-			Category: "channel",
+	if channel != "" { // 注销channel
+		reg := Registration{
+			Category: CatagoryChannel,
 			Key:      topic,
 			SubKey:   channel,
 		}
 
-		removed, left := l.emqlookupd.DB.RemoveProducer(key, client.peerInfo.id)
+		removed, left := l.emqlookupd.DB.RemoveProducer(reg, client.peerInfo.id)
 		if removed {
-			log.Infof("DB: client(%v) UNREGISTER category:%s key:%s subkey:%s", client, "channel", topic, channel)
+			log.Infof("UNREGISTER: RemoveProducer client: %s, category: %s, key: %s, subkey: %s", client.peerInfo.id, reg.Category, reg.Key, reg.SubKey)
 		}
 
 		if left == 0 {
-			l.emqlookupd.DB.RemoveRegistration(key)
+			l.emqlookupd.DB.RemoveRegistration(reg)
 		}
 
-	} else { // 不为空删除topic下所有channel
-		registrations := l.emqlookupd.DB.FindRegistrations("channel", topic, "*")
-		for _, r := range registrations {
-			if removed, _ := l.emqlookupd.DB.RemoveProducer(r, client.peerInfo.id); removed {
-				log.Infof("client(%v) unexpected UNREGISTER category:%s key:%s subkey:%s", client, "channel", topic, r.SubKey)
+	} else { // 注销topic
+		registrations := l.emqlookupd.DB.FindRegistrations(CatagoryChannel, topic, "*")
+		for _, reg := range registrations {
+			removed, left := l.emqlookupd.DB.RemoveProducer(reg, client.peerInfo.id)
+			if removed {
+				log.Infof("UNREGISTER: RemoveProducer client: %s, category: %s, key: %s, subkey: %s", client.peerInfo.id, reg.Category, reg.Key, reg.SubKey)
+			}
+			if left == 0 {
+				l.emqlookupd.DB.RemoveRegistration(reg)
 			}
 		}
 
-		key := Registration{
-			Category: "topic",
+		reg := Registration{
+			Category: CatagoryTopic,
 			Key:      topic,
-			SubKey:   "",
 		}
-		removed, left := l.emqlookupd.DB.RemoveProducer(key, client.peerInfo.id)
+		removed, left := l.emqlookupd.DB.RemoveProducer(reg, client.peerInfo.id)
 		if removed {
-			log.Infof("DB: client(%v) UNREGISTER category:%s key:%s subkey:%s", client, "topic", topic, "")
+			log.Infof("UNREGISTER: RemoveProducer client: %s, category: %s, key: %s, subkey: %s", client.peerInfo.id, reg.Category, reg.Key, reg.SubKey)
 		}
 
 		if left == 0 {
-			l.emqlookupd.DB.RemoveRegistration(key)
+			l.emqlookupd.DB.RemoveRegistration(reg)
 		}
 
 	}

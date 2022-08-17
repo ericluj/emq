@@ -29,7 +29,7 @@ func (e *EMQD) lookupLoop() {
 				if err != nil {
 					log.Infof("Connect error: %v", err)
 					// TODO: 是否要抛error
-					return
+					goto exit
 				}
 				lookupPeers = append(lookupPeers, lookupPeer)
 				lookupAddrs = append(lookupAddrs, addr)
@@ -88,4 +88,5 @@ func (e *EMQD) lookupLoop() {
 
 exit:
 	log.Infof("lookupLoop: exit")
+	ticker.Stop()
 }
