@@ -95,13 +95,13 @@ func (co *Consumer) ConnectToEMQD(addr string) error {
 
 	conn := NewConn(addr, &consumerConnDelegate{r: co})
 	if err := conn.Connect(); err != nil {
-		conn.Close()
+		conn.Stop()
 		return err
 	}
 
 	cmd := command.SubscribeCmd(co.topic, co.channel)
-	if err := conn.WriteCommand(cmd); err != nil {
-		conn.Close()
+	if _, err := conn.Command(cmd); err != nil {
+		conn.Stop()
 		return fmt.Errorf("[%v] failed to subscribe to %s:%s - %s", conn, co.topic, co.channel, err.Error())
 	}
 
@@ -116,7 +116,7 @@ func (co *Consumer) onConnMessage(c *Conn, msg *Message) {
 }
 
 func (co *Consumer) onConnIOError(c *Conn, err error) {
-	c.Close()
+	c.Stop()
 }
 
 func (co *Consumer) onConnResponse(c *Conn, data []byte) {

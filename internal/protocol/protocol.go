@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -84,4 +85,21 @@ func SendFrameData(w io.Writer, frameType int32, data []byte) error {
 	}
 
 	return err
+}
+
+// 读取包含frameType的data
+func ReadFrameData(r io.Reader) (int32, []byte, error) {
+	data, err := ReadData(r)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	if len(data) < 4 {
+		return 0, nil, errors.New("length of data is too small < 4")
+	}
+
+	frameType := int32(binary.BigEndian.Uint32(data[:4]))
+	resp := data[4:]
+
+	return frameType, resp, nil
 }

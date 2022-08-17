@@ -51,7 +51,7 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 	// 协议版本
 	_, err = lp.Write([]byte(common.ProtoMagic))
 	if err != nil {
-		lp.conn.Close()
+		lp.Close()
 		return err
 	}
 

@@ -7,12 +7,12 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/protocol"
 	"github.com/ericluj/emq/internal/util"
 )
 
@@ -22,21 +22,16 @@ type msgResponse struct {
 }
 
 type Conn struct {
-	addr     string
-	conn     *net.TCPConn
-	delegate ConnDelegate
+	mtx  sync.RWMutex
+	wg   util.WaitGroup
+	conn net.Conn
 
-	r io.Reader
-	w io.Writer
+	addr     string
+	delegate ConnDelegate
 
 	cmdChan         chan *command.Command
 	msgResponseChan chan *msgResponse
-
-	mtx       sync.RWMutex
-	wg        util.WaitGroup
-	closeFlag int32
-	exitOnce  sync.Once
-	exitChan  chan int
+	exitChan        chan int
 }
 
 func NewConn(addr string, delegate ConnDelegate) *Conn {
@@ -56,7 +51,7 @@ func (c *Conn) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return c.w.Write(p)
+	return c.conn.Write(p)
 }
 
 func (c *Conn) Read(p []byte) (int, error) {
@@ -64,43 +59,42 @@ func (c *Conn) Read(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return c.r.Read(p)
+	return c.conn.Read(p)
 }
 
-func (c *Conn) Close() error {
-	atomic.StoreInt32(&c.closeFlag, 1)
+func (c *Conn) Stop() {
 	if c.conn != nil {
-		err := c.conn.CloseRead()
-		if err != nil {
-			return err
-		}
+		c.conn.Close()
 	}
 
+	close(c.exitChan)
+
 	c.wg.Wait()
-	return nil
 }
 
 func (c *Conn) Connect() error {
-	dialer := &net.Dialer{
-		Timeout: common.DialTimeout,
-	}
-
-	conn, err := dialer.Dial("tcp", c.addr)
+	// tcp连接
+	conn, err := net.DialTimeout("tcp", c.addr, common.DialTimeout)
 	if err != nil {
 		return err
 	}
+	c.conn = conn
 
-	c.conn = conn.(*net.TCPConn)
-	c.r = conn
-	c.w = conn
-
+	// 协议版本
 	_, err = c.Write([]byte(common.ProtoMagic))
 	if err != nil {
-		c.Close()
-		return fmt.Errorf("[%s] failed to write magic - %s", c.addr, err)
+		c.conn.Close()
+		return err
 	}
 
-	err = c.identify()
+	// identify
+	identifyData := map[string]interface{}{}
+	cmd, err := command.IDENTIFYCmd(identifyData)
+	if err != nil {
+		c.conn.Close()
+		return err
+	}
+	_, err = c.Command(cmd)
 	if err != nil {
 		return err
 	}
@@ -111,26 +105,19 @@ func (c *Conn) Connect() error {
 	return nil
 }
 
-func (c *Conn) identify() error {
-	// if err := c.upgradeTLS(); err != nil {
-	// 	return err
-	// }
-
-	return nil
-}
-
 func (c *Conn) readLoop() {
 	for {
-		// 已经被关闭
-		if atomic.LoadInt32(&c.closeFlag) == 1 {
+		select {
+		case <-c.exitChan:
 			goto exit
+		default:
 		}
 
 		// 读取数据
-		frameType, data, err := ReadUnpackedResponse(c)
+		frameType, data, err := protocol.ReadFrameData(c.conn)
 		if err != nil {
 			// 读到了结束且连接关闭
-			if err == io.EOF && atomic.LoadInt32(&c.closeFlag) == 1 {
+			if err == io.EOF {
 				goto exit
 			}
 			// 其他错误
@@ -144,7 +131,7 @@ func (c *Conn) readLoop() {
 		// 心跳处理
 		if frameType == common.FrameTypeResponse && bytes.Equal(data, common.HeartbeatBytes) {
 			c.delegate.OnHeartbeat(c)
-			err := c.WriteCommand(command.NopCmd())
+			_, err := c.Command(command.NopCmd())
 			if err != nil {
 				log.Infof("IO error: %v", err)
 				c.delegate.OnIOError(c, err)
@@ -176,32 +163,30 @@ func (c *Conn) readLoop() {
 	}
 
 exit:
-	c.close() // TODO:这个关闭会把writeLoop关掉，为什么要有两个呢
 	log.Infof("readLoop exiting")
 }
 
 func (c *Conn) writeLoop() {
-
-}
-
-func (c *Conn) close() {
-	c.exitOnce.Do(func() {
-		log.Infof("beginning close")
-		close(c.exitChan)
-		err := c.conn.CloseRead()
-		if err != nil {
-			log.Infof("error: %v", err)
+	for {
+		select {
+		case <-c.exitChan:
+			break
+		default:
 		}
-	})
-
+	}
 }
 
-func (c *Conn) WriteCommand(cmd *command.Command) error {
+func (c *Conn) Command(cmd *command.Command) ([]byte, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	if err := cmd.Write(c); err != nil {
-		log.Infof("WriteCommand error: %v, cmd: %v", err, cmd)
-		return err
+
+	if err := cmd.Write(c.conn); err != nil {
+		return nil, err
 	}
-	return nil
+	resp, err := protocol.ReadData(c.conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
