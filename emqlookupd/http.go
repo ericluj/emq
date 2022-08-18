@@ -16,6 +16,7 @@ func newHTTPServer(l *EMQLookupd) *HTTPServer {
 		emqlookupd: l,
 	}
 
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/ping", s.ping)
 	router.GET("/lookup", s.lookup)

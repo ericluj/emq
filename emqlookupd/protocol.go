@@ -1,7 +1,6 @@
 package emqlookupd
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -30,17 +29,16 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 
 	client := c.(*Client)
 
-	// 设置deadline
-	err = client.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
-	if err != nil {
-		log.Infof("SetReadDeadline error: %v", err)
-		return err
-	}
-
 	// 接受cmd并执行操作
-	reader := bufio.NewReaderSize(client.conn, common.DefaultBufferSize)
 	for {
-		line, err = reader.ReadSlice('\n')
+		// 设置deadline
+		err = client.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+		if err != nil {
+			log.Infof("SetReadDeadline error: %v", err)
+			return err
+		}
+
+		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
 			if err == io.EOF {
 				err = nil
@@ -58,7 +56,7 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		}
 		// 空格拆分
 		params := bytes.Split(line, common.SeparatorBytes)
-		log.Infof("PROTOCOL: %s, %s", client.conn.RemoteAddr(), params)
+		log.Infof("PROTOCOL: %s, params: %s", client.conn.RemoteAddr(), params)
 
 		var response []byte
 		response, err = l.Exec(client, params)

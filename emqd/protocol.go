@@ -1,7 +1,6 @@
 package emqd
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -40,17 +39,16 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 	// 保证在messagePump的初始化完成后才往下执行
 	<-messagePumpStartedChan
 
-	// 设置deadline
-	err = client.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
-	if err != nil {
-		log.Infof("SetReadDeadline error: %v", err)
-		return err
-	}
-
 	// 接受cmd并执行操作
-	reader := bufio.NewReaderSize(client.conn, common.DefaultBufferSize)
 	for {
-		line, err = reader.ReadSlice('\n')
+		// 设置deadline
+		err = client.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
+		if err != nil {
+			log.Infof("SetReadDeadline error: %v", err)
+			return err
+		}
+
+		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
 			if err == io.EOF {
 				err = nil

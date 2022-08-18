@@ -3,7 +3,6 @@ package emqd
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
@@ -18,21 +17,7 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("IDENTITY: cannot in current state")
 	}
 
-	bodyLen, err := protocol.ReadDataSize(client.conn)
-	if err != nil {
-		return nil, fmt.Errorf("IDENTITY: failed to read data size")
-	}
-
-	if bodyLen <= 0 {
-		return nil, fmt.Errorf("IDENTITY: invalid data size %d", bodyLen)
-	}
-
-	if int64(bodyLen) > p.emqd.getOpts().MaxMsgSize {
-		return nil, fmt.Errorf("IDENTITY: data too big %d > %d", bodyLen, p.emqd.getOpts().MaxMsgSize)
-	}
-
-	body := make([]byte, bodyLen)
-	_, err = io.ReadFull(client.conn, body)
+	body, err := protocol.ReadData(client.reader)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTITY: failed to read body")
 	}
@@ -61,21 +46,7 @@ func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {
 	}
 	topicName := string(params[1])
 
-	bodyLen, err := protocol.ReadDataSize(client.conn)
-	if err != nil {
-		return nil, fmt.Errorf("PUB: failed to read data size")
-	}
-
-	if bodyLen <= 0 {
-		return nil, fmt.Errorf("PUB: invalid data size %d", bodyLen)
-	}
-
-	if int64(bodyLen) > p.emqd.getOpts().MaxMsgSize {
-		return nil, fmt.Errorf("PUB: data too big %d > %d", bodyLen, p.emqd.getOpts().MaxMsgSize)
-	}
-
-	body := make([]byte, bodyLen)
-	_, err = io.ReadFull(client.conn, body)
+	body, err := protocol.ReadData(client.reader)
 	if err != nil {
 		return nil, fmt.Errorf("PUB: failed to read body")
 	}

@@ -1,6 +1,7 @@
 package emqd
 
 import (
+	"bufio"
 	"net"
 	"time"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type LookupPeer struct {
-	addr  string
-	conn  net.Conn
-	state int32
+	addr   string
+	conn   net.Conn
+	reader *bufio.Reader
+	state  int32
 	// info  PeerInfo
 }
 
@@ -41,6 +43,7 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 		return err
 	}
 	lp.conn = conn
+	lp.reader = bufio.NewReaderSize(conn, common.DefaultBufferSize)
 	lp.state = common.PeerConnected
 
 	// 如果不是第一次连接，不需要下面的逻辑
@@ -56,16 +59,20 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 	}
 
 	// identify
-	identifyData := map[string]interface{}{}
+	identifyData := map[string]interface{}{
+		"tcp_address":  e.getOpts().TCPAddress,
+		"http_address": e.getOpts().HTTPAddress,
+	}
 	cmd, err := command.IDENTIFYCmd(identifyData)
 	if err != nil {
 		lp.Close()
 		return err
 	}
-	_, err = lp.Command(cmd)
+	resp, err := lp.Command(cmd)
 	if err != nil {
 		return err
 	}
+	log.Infof("IDENTIFYCmd resp: %s", resp)
 	// TODO: 返回数据待处理
 
 	// 注册到lookupd
@@ -126,7 +133,7 @@ func (lp *LookupPeer) Command(cmd *command.Command) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := protocol.ReadData(lp.conn)
+	resp, err := protocol.ReadData(lp.reader)
 	if err != nil {
 		lp.Close()
 		return nil, err

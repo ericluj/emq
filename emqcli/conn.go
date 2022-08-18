@@ -170,8 +170,9 @@ func (c *Conn) writeLoop() {
 	for {
 		select {
 		case <-c.exitChan:
-			break
+			return
 		default:
+			log.Infof("default")
 		}
 	}
 }

@@ -31,9 +31,12 @@ func NewOptions() *Options {
 	}
 	defaultID := int64(crc32.ChecksumIEEE(h.Sum(nil)) % 1024)
 	return &Options{
-		ID:           defaultID,
-		TCPAddress:   "0.0.0.0:6001",
-		HTTPAddress:  "0.0.0.0:6002",
+		ID:          defaultID,
+		TCPAddress:  "0.0.0.0:6001",
+		HTTPAddress: "0.0.0.0:6002",
+		LookupdTCPAddresses: []string{
+			"127.0.0.1:7001",
+		},
 		MemQueueSize: 10000,
 		MaxMsgSize:   1024 * 1024,
 	}

@@ -13,6 +13,7 @@ type HTTPServer struct {
 func newHTTPServer() *HTTPServer {
 	s := &HTTPServer{}
 
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/ping", s.ping)
 

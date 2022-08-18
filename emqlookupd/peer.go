@@ -4,8 +4,7 @@ type PeerInfo struct {
 	id         string
 	lastUpdate int64
 
-	RemoteAddress    string `json:"remote_address"`
-	TCPPort          int    `json:"tcp_port"`
-	HTTPPort         int    `json:"http_port"`
+	TCPAddress       string `json:"tcp_address"`
+	HTTPAddress      string `json:"http_address"`
 	BroadcastAddress string `json:"broadcast_address"`
 }

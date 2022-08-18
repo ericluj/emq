@@ -3,7 +3,6 @@ package emqlookupd
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"sync/atomic"
 	"time"
@@ -29,13 +28,7 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, erro
 		return nil, fmt.Errorf("IDENTITY: can not again")
 	}
 
-	bodyLen, err := protocol.ReadDataSize(client.conn)
-	if err != nil {
-		return nil, fmt.Errorf("IDENTITY: failed to read data size")
-	}
-
-	body := make([]byte, bodyLen)
-	_, err = io.ReadFull(client.conn, body)
+	body, err := protocol.ReadData(client.reader)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTITY: failed to read body")
 	}
@@ -47,16 +40,15 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, erro
 		return nil, fmt.Errorf("IDENTIFY: failed to decode JSON body")
 	}
 
-	if peerInfo.BroadcastAddress == "" || peerInfo.TCPPort == 0 || peerInfo.HTTPPort == 0 {
+	if peerInfo.TCPAddress == "" || peerInfo.HTTPAddress == "" {
 		return nil, fmt.Errorf("IDENTIFY: missing fields")
 	}
 
-	peerInfo.RemoteAddress = client.conn.RemoteAddr().String()
 	atomic.StoreInt64(&peerInfo.lastUpdate, time.Now().UnixNano())
 
 	client.peerInfo = &peerInfo
 
-	log.Infof("IDENTIFY: client: %s, Address:%s, TCP: %d, HTTP: %d", peerInfo.id, peerInfo.BroadcastAddress, peerInfo.TCPPort, peerInfo.HTTPPort)
+	log.Infof("IDENTIFY: client: %s, TCP: %s, HTTP: %s", peerInfo.id, peerInfo.TCPAddress, peerInfo.HTTPAddress)
 
 	// 保存数据
 	producer := &Producer{peerInfo: client.peerInfo}

@@ -5,6 +5,7 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
+	"github.com/ericluj/emq/internal/common"
 	"github.com/ericluj/emq/internal/util"
 )
 
@@ -14,8 +15,7 @@ func (e *EMQD) lookupLoop() {
 		lookupAddrs []string
 	)
 	connect := true // 是否进行连接
-
-	ticker := time.NewTicker(time.Second * 15)
+	heartbeatTicker := time.NewTicker(common.HeartbeatTimeout)
 	for {
 		if connect {
 			for _, addr := range e.getOpts().LookupdTCPAddresses {
@@ -37,9 +37,8 @@ func (e *EMQD) lookupLoop() {
 			e.lookupPeers.Store(&lookupPeers)
 			connect = false
 		}
-
 		select {
-		case <-ticker.C:
+		case <-heartbeatTicker.C:
 			// 心跳
 			for _, lp := range lookupPeers {
 				log.Infof("lookup: %s, sending heartbeat", lp.addr)
@@ -88,5 +87,5 @@ func (e *EMQD) lookupLoop() {
 
 exit:
 	log.Infof("lookupLoop: exit")
-	ticker.Stop()
+	heartbeatTicker.Stop()
 }
