@@ -90,7 +90,7 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 		}
 		topic.mtx.RUnlock()
 	}
-	e.mtx.RLock()
+	e.mtx.RUnlock()
 
 	for _, cmd := range cmds {
 		log.Infof("lookup: %s, cmd: %v", lp.addr, cmd)
