@@ -86,7 +86,7 @@ func (l *LookupProtocol) REGISTER(client *Client, params [][]byte) ([]byte, erro
 
 	topic := string(params[1])
 	var channel string
-	if len(params) >= 2 {
+	if len(params) > 2 {
 		channel = string(params[2])
 	}
 
@@ -128,7 +128,7 @@ func (l *LookupProtocol) UNREGISTER(client *Client, params [][]byte) ([]byte, er
 
 	topic := string(params[1])
 	var channel string
-	if len(params) >= 2 {
+	if len(params) > 2 {
 		channel = string(params[2])
 	}
 
