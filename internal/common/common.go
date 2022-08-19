@@ -5,8 +5,7 @@ import (
 )
 
 const (
-	FrameTypeResponse int32 = iota
-	FrameTypeError
+	FrameTypeError int32 = iota
 	FrameTypeMessage
 )
 
@@ -23,10 +22,10 @@ var (
 )
 
 var (
-	DialTimeout      = time.Second
-	ReadTimeout      = time.Second * 60
-	WriteTimeout     = time.Second
-	HeartbeatTimeout = time.Second * 30
+	DialTimeout      = time.Second * 5
+	ReadTimeout      = time.Second * 30
+	WriteTimeout     = time.Second * 5
+	HeartbeatTimeout = time.Second * 15
 )
 
 var (

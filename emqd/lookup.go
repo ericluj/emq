@@ -18,7 +18,7 @@ func (e *EMQD) lookupLoop() {
 	heartbeatTicker := time.NewTicker(common.HeartbeatTimeout)
 	for {
 		if connect {
-			for _, addr := range e.getOpts().LookupdTCPAddresses {
+			for _, addr := range e.GetOpts().LookupdTCPAddresses {
 				if util.InArr(addr, lookupAddrs) {
 					continue
 				}

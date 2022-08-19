@@ -51,6 +51,7 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
 			if err == io.EOF {
+				log.Infof("io.EOF")
 				err = nil
 			} else {
 				err = fmt.Errorf("read command error: %v", err)
@@ -85,7 +86,7 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 			continue
 		}
 		if response != nil {
-			err = p.Send(client, common.FrameTypeResponse, response)
+			err = p.Send(client, common.FrameTypeMessage, response)
 			if err != nil {
 				err = fmt.Errorf("send FrameTypeResponse error: %v", err)
 				break
@@ -143,7 +144,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 		// 心跳
 		case <-heartbeatTicker.C:
 			log.Infof("send heartbeat to %s", client.conn.RemoteAddr())
-			err := p.Send(client, common.FrameTypeResponse, common.HeartbeatBytes)
+			err := p.Send(client, common.FrameTypeMessage, common.HeartbeatBytes)
 			if err != nil {
 				log.Infof("PROTOCOL: heartbeat %s error: %v", client.conn.RemoteAddr(), err)
 				goto exit
@@ -179,7 +180,7 @@ func (p *Protocol) Send(client *Client, frameType int32, data []byte) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
-	err := client.conn.SetWriteDeadline(time.Now().Add(common.HeartbeatTimeout))
+	err := client.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
 	if err != nil {
 		return err
 	}

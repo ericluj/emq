@@ -2,6 +2,7 @@ package emqd
 
 import (
 	"bufio"
+	"errors"
 	"net"
 	"time"
 
@@ -60,8 +61,8 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 
 	// identify
 	identifyData := map[string]interface{}{
-		"tcp_address":  e.getOpts().TCPAddress,
-		"http_address": e.getOpts().HTTPAddress,
+		"tcp_address":  e.GetOpts().TCPAddress,
+		"http_address": e.GetOpts().HTTPAddress,
 	}
 	cmd, err := command.IDENTIFYCmd(identifyData)
 	if err != nil {
@@ -128,16 +129,25 @@ func (lp *LookupPeer) Close() error {
 }
 
 func (lp *LookupPeer) Command(cmd *command.Command) ([]byte, error) {
+
+	err := lp.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
+	if err != nil {
+		return nil, err
+	}
+
 	if err := cmd.Write(lp.conn); err != nil {
 		lp.Close()
 		return nil, err
 	}
 
-	resp, err := protocol.ReadData(lp.reader)
+	frameType, body, err := protocol.ReadFrameData(lp.reader)
 	if err != nil {
 		lp.Close()
 		return nil, err
 	}
+	if frameType == common.FrameTypeError {
+		return nil, errors.New(string(body))
+	}
 
-	return resp, nil
+	return body, nil
 }

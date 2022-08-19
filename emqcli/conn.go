@@ -2,6 +2,7 @@ package emqcli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -114,7 +115,7 @@ func (c *Conn) readLoop() {
 		}
 
 		// 读取数据
-		frameType, data, err := protocol.ReadFrameData(c.conn)
+		frameType, body, err := protocol.ReadFrameData(c.conn)
 		if err != nil {
 			// 读到了结束且连接关闭
 			if err == io.EOF {
@@ -127,9 +128,13 @@ func (c *Conn) readLoop() {
 			}
 			goto exit
 		}
+		if frameType == common.FrameTypeError {
+			log.Infof("IO error: %v", errors.New(string(body)))
+			c.delegate.OnIOError(c, errors.New(string(body)))
+		}
 
 		// 心跳处理
-		if frameType == common.FrameTypeResponse && bytes.Equal(data, common.HeartbeatBytes) {
+		if frameType == common.FrameTypeResponse && bytes.Equal(body, common.HeartbeatBytes) {
 			c.delegate.OnHeartbeat(c)
 			_, err := c.Command(command.NopCmd())
 			if err != nil {
@@ -142,9 +147,9 @@ func (c *Conn) readLoop() {
 
 		switch frameType {
 		case common.FrameTypeResponse:
-			c.delegate.OnResponse(c, data)
+			c.delegate.OnResponse(c, body)
 		case common.FrameTypeMessage:
-			msg, err := DecodeMessage(data)
+			msg, err := DecodeMessage(body)
 			if err != nil {
 				log.Infof("IO error: %v", err)
 				c.delegate.OnIOError(c, err)
@@ -154,7 +159,7 @@ func (c *Conn) readLoop() {
 			c.delegate.OnMessage(c, msg)
 		case common.FrameTypeError:
 			log.Infof("protocol error: %v", err)
-			c.delegate.OnError(c, data)
+			c.delegate.OnError(c, body)
 		default:
 			e := fmt.Errorf("unknown frame type %d", frameType)
 			log.Infof("IO error: %s", e)
@@ -184,10 +189,13 @@ func (c *Conn) Command(cmd *command.Command) ([]byte, error) {
 	if err := cmd.Write(c.conn); err != nil {
 		return nil, err
 	}
-	resp, err := protocol.ReadData(c.conn)
+	frameType, body, err := protocol.ReadFrameData(c.conn)
 	if err != nil {
 		return nil, err
 	}
+	if frameType == common.FrameTypeError {
+		return nil, errors.New(string(body))
+	}
 
-	return resp, nil
+	return body, nil
 }

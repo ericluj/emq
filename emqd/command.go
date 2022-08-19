@@ -17,9 +17,12 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("IDENTITY: cannot in current state")
 	}
 
-	body, err := protocol.ReadData(client.reader)
+	frameType, body, err := protocol.ReadFrameData(client.reader)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTITY: failed to read body")
+	}
+	if frameType == common.FrameTypeError {
+		return nil, fmt.Errorf("IDENTITY: failed to read body: %s", body)
 	}
 
 	var identifyData IdentifyData
@@ -32,7 +35,7 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 
 	// TODO: 这里是需要有一些identify的数据处理返回的
 
-	err = p.Send(client, common.FrameTypeResponse, common.OKBytes)
+	err = p.Send(client, common.FrameTypeMessage, common.OKBytes)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTITY: send FrameTypeResponse error: %v", err)
 	}
@@ -46,9 +49,12 @@ func (p *Protocol) PUB(client *Client, params [][]byte) ([]byte, error) {
 	}
 	topicName := string(params[1])
 
-	body, err := protocol.ReadData(client.reader)
+	frameType, body, err := protocol.ReadFrameData(client.reader)
 	if err != nil {
 		return nil, fmt.Errorf("PUB: failed to read body")
+	}
+	if frameType == common.FrameTypeError {
+		return nil, fmt.Errorf("IDENTITY: failed to read body: %s", body)
 	}
 
 	topic := p.emqd.GetTopic(topicName)

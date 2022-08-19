@@ -18,7 +18,7 @@ type Protocol interface {
 }
 
 // 大端字节序将其转换为数字
-func ReadDataSize(r io.Reader) (int32, error) {
+func readDataSize(r io.Reader) (int32, error) {
 	var dataSize int32
 	err := binary.Read(r, binary.BigEndian, &dataSize)
 	if err != nil {
@@ -31,9 +31,9 @@ func ReadDataSize(r io.Reader) (int32, error) {
 	return dataSize, nil
 }
 
-func ReadData(r io.Reader) ([]byte, error) {
+func readData(r io.Reader) ([]byte, error) {
 	// 读出数据长度
-	dataSize, err := ReadDataSize(r)
+	dataSize, err := readDataSize(r)
 	if err != nil {
 		return nil, err
 	}
@@ -46,22 +46,6 @@ func ReadData(r io.Reader) ([]byte, error) {
 	}
 
 	return buf, nil
-}
-
-func SendData(w io.Writer, data []byte) error {
-	// 大端字节序写入数据长度
-	err := binary.Write(w, binary.BigEndian, int32(len(data)))
-	if err != nil {
-		return err
-	}
-
-	// 写入data内容
-	_, err = w.Write(data)
-	if err != nil {
-		return err
-	}
-
-	return err
 }
 
 // 发送包含frameType的data
@@ -89,7 +73,7 @@ func SendFrameData(w io.Writer, frameType int32, data []byte) error {
 
 // 读取包含frameType的data
 func ReadFrameData(r io.Reader) (int32, []byte, error) {
-	data, err := ReadData(r)
+	data, err := readData(r)
 	if err != nil {
 		return 0, nil, err
 	}

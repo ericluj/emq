@@ -41,6 +41,7 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
 			if err == io.EOF {
+				log.Infof("io.EOF")
 				err = nil
 			} else {
 				err = fmt.Errorf("read command error: %v", err)
@@ -76,7 +77,7 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		}
 
 		if response != nil {
-			err = protocol.SendFrameData(client.conn, common.FrameTypeResponse, response)
+			err = protocol.SendFrameData(client.conn, common.FrameTypeMessage, response)
 			if err != nil {
 				break
 			}

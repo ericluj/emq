@@ -38,7 +38,7 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 		name:              topicName,
 		channelMap:        make(map[string]*Channel),
 		channelUpdateChan: make(chan int), // topic的channel修改
-		memoryMsgChan:     make(chan *Message, emqd.getOpts().MemQueueSize),
+		memoryMsgChan:     make(chan *Message, emqd.GetOpts().MemQueueSize),
 		startChan:         make(chan int),
 		exitChan:          make(chan int),
 	}

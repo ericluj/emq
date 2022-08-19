@@ -41,6 +41,10 @@ func NewEMQLookupd(opts *Options) (*EMQLookupd, error) {
 	return l, err
 }
 
+func (l *EMQLookupd) GetOpts() *Options {
+	return l.opts
+}
+
 func (l *EMQLookupd) Main() error {
 	var once sync.Once
 	exitCh := make(chan error)

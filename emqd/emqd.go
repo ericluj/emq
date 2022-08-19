@@ -112,7 +112,7 @@ func (e *EMQD) Exit() {
 	log.Infof("EMQD exit")
 }
 
-func (e *EMQD) getOpts() *Options {
+func (e *EMQD) GetOpts() *Options {
 	return e.opts.Load().(*Options)
 }
 

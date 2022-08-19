@@ -34,7 +34,7 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 		topicName:     topicName,
 		name:          channelName,
 		clients:       make(map[int64]*Client),
-		memoryMsgChan: make(chan *Message, emqd.getOpts().MemQueueSize),
+		memoryMsgChan: make(chan *Message, emqd.GetOpts().MemQueueSize),
 	}
 
 	c.emqd.Notify(c) // 通知lookupd

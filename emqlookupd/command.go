@@ -28,9 +28,12 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, erro
 		return nil, fmt.Errorf("IDENTITY: can not again")
 	}
 
-	body, err := protocol.ReadData(client.reader)
+	frameType, body, err := protocol.ReadFrameData(client.reader)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTITY: failed to read body")
+	}
+	if frameType == common.FrameTypeError {
+		return nil, fmt.Errorf("IDENTITY: failed to read body: %s", body)
 	}
 
 	// 构造信息
