@@ -77,7 +77,7 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		}
 
 		if response != nil {
-			err = protocol.SendFrameData(client.conn, common.FrameTypeMessage, response)
+			err = protocol.SendFrameData(client.conn, common.FrameTypeResponse, response)
 			if err != nil {
 				break
 			}

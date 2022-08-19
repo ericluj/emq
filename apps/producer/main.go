@@ -14,4 +14,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
+	log.Infof("end")
 }

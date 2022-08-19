@@ -35,7 +35,7 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 
 	// TODO: 这里是需要有一些identify的数据处理返回的
 
-	err = p.Send(client, common.FrameTypeMessage, common.OKBytes)
+	err = p.Send(client, common.FrameTypeResponse, common.OKBytes)
 	if err != nil {
 		return nil, fmt.Errorf("IDENTITY: send FrameTypeResponse error: %v", err)
 	}

@@ -86,7 +86,7 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 			continue
 		}
 		if response != nil {
-			err = p.Send(client, common.FrameTypeMessage, response)
+			err = p.Send(client, common.FrameTypeResponse, response)
 			if err != nil {
 				err = fmt.Errorf("send FrameTypeResponse error: %v", err)
 				break
@@ -144,7 +144,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 		// 心跳
 		case <-heartbeatTicker.C:
 			log.Infof("send heartbeat to %s", client.conn.RemoteAddr())
-			err := p.Send(client, common.FrameTypeMessage, common.HeartbeatBytes)
+			err := p.Send(client, common.FrameTypeResponse, common.HeartbeatBytes)
 			if err != nil {
 				log.Infof("PROTOCOL: heartbeat %s error: %v", client.conn.RemoteAddr(), err)
 				goto exit

@@ -176,8 +176,6 @@ func (c *Conn) writeLoop() {
 		select {
 		case <-c.exitChan:
 			return
-		default:
-			log.Infof("default")
 		}
 	}
 }
@@ -185,6 +183,11 @@ func (c *Conn) writeLoop() {
 func (c *Conn) Command(cmd *command.Command) ([]byte, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
+
+	err := c.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
+	if err != nil {
+		return nil, err
+	}
 
 	if err := cmd.Write(c.conn); err != nil {
 		return nil, err

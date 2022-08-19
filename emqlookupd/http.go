@@ -134,7 +134,11 @@ type createTopicReq struct {
 
 func (s *HTTPServer) createTopic(c *gin.Context) {
 	req := createTopicReq{}
-	c.BindJSON(&req)
+	err := c.BindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrResp("BINDJSON_ERROR"))
+		return
+	}
 
 	topicName := req.Topic
 	if topicName == "" {
@@ -159,7 +163,11 @@ type deleteTopicReq struct {
 
 func (s *HTTPServer) deleteTopic(c *gin.Context) {
 	req := deleteTopicReq{}
-	c.BindJSON(&req)
+	err := c.BindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrResp("BINDJSON_ERROR"))
+		return
+	}
 
 	topicName := req.Topic
 	if topicName == "" {
@@ -189,7 +197,11 @@ type createChannelReq struct {
 
 func (s *HTTPServer) createChannel(c *gin.Context) {
 	req := createChannelReq{}
-	c.BindJSON(&req)
+	err := c.BindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrResp("BINDJSON_ERROR"))
+		return
+	}
 
 	topicName := req.Topic
 	if topicName == "" {
@@ -229,7 +241,11 @@ type deleteChannelReq struct {
 
 func (s *HTTPServer) deleteChannel(c *gin.Context) {
 	req := deleteChannelReq{}
-	c.BindJSON(&req)
+	err := c.BindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrResp("BINDJSON_ERROR"))
+		return
+	}
 
 	topicName := req.Topic
 	if topicName == "" {

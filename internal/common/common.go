@@ -7,6 +7,7 @@ import (
 const (
 	FrameTypeError int32 = iota
 	FrameTypeMessage
+	FrameTypeResponse
 )
 
 const (
