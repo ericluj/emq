@@ -9,3 +9,5 @@ golang实现的消息队列，主要参考了nsq的实现方式。
 [channel和select的使用](https://ericluj.github.io/2022/08/07/emq/channel%E7%9A%84%E4%BD%BF%E7%94%A8/)
 
 [golang实现优雅退出](https://ericluj.github.io/2022/08/07/emq/golang%E5%AE%9E%E7%8E%B0%E4%BC%98%E9%9B%85%E9%80%80%E5%87%BA/)
+
+[golang并发下的数据控制](https://ericluj.github.io/2022/08/21/emq/golang%E5%B9%B6%E5%8F%91%E4%B8%8B%E7%9A%84%E6%95%B0%E6%8D%AE%E6%8E%A7%E5%88%B6/)
