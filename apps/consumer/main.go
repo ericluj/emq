@@ -2,24 +2,27 @@ package main
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/emqcli"
 )
 
 func main() {
-	sigChan := make(chan os.Signal, 1)
-	consumer, err := emqcli.NewConsumer("test", "one")
-	if err != nil {
-		log.Fatalf("NewConsumer fatal: %v", err)
-	}
-	consumer.AddHandler(&ConsumerHandler{})
+	c := make(chan os.Signal, 1)
 
-	err = consumer.ConnectToEMQD("127.0.0.1:6001")
+	consumer := emqcli.NewConsumer("test", "one")
+
+	consumer.AddHandler(&ConsumerHandler{})
+	err := consumer.ConnectToEMQD("127.0.0.1:6001")
 	if err != nil {
 		log.Fatalf("ConnectToEMQD fatal: %v", err)
 	}
-	<-sigChan
+
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	<-c
+	consumer.Exit()
 }
 
 type ConsumerHandler struct{}

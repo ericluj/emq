@@ -17,7 +17,7 @@ func NewProducer(addr string) (*Producer, error) {
 	p := &Producer{
 		id: atomic.AddInt64(&instCount, 1),
 	}
-	p.conn = NewConn(addr, &producerConnDelegate{w: p})
+	p.conn = NewConn(addr, nil)
 	err := p.conn.Connect()
 	if err != nil {
 		log.Infof("Connect error: %v", err)

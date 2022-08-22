@@ -18,10 +18,6 @@ type Message struct {
 	EMQDAddress string
 }
 
-func (m *Message) Finish() {
-
-}
-
 // 数据格式：timestamp(8byte) + attempts(2byte) + messageID(16byte) + body
 func DecodeMessage(b []byte) (*Message, error) {
 	var msg Message
