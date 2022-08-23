@@ -1,26 +1,35 @@
 package emqcli
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/command"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
+	"github.com/go-resty/resty/v2"
 )
 
 var instCount int64
 
 type Consumer struct {
-	id      int64
-	topic   string
-	channel string
-	state   int32
+	mtx               sync.RWMutex
+	wg                util.WaitGroup
+	lookupdAddrs      []string
+	lookupdQueryIndex int
+	lookupClient      *resty.Client
+	id                int64
+	topic             string
+	channel           string
 
-	conn     *Conn
-	msgChan  chan *Message
-	exitChan chan int
+	conns      map[string]*Conn
+	msgChan    chan *Message
+	exitChan   chan int
+	isExisting int32
 
 	exitOnce sync.Once
 }
@@ -40,18 +49,32 @@ func NewConsumer(topic, channel string) *Consumer {
 	return c
 }
 
+func (co *Consumer) GetConns() []*Conn {
+	co.mtx.RLock()
+	defer co.mtx.RUnlock()
+
+	conns := make([]*Conn, 0, len(co.conns))
+	for _, v := range co.conns {
+		conns = append(conns, v)
+	}
+
+	return conns
+}
+
 func (co *Consumer) Exit() {
 	co.exitOnce.Do(func() {
-		co.conn.Stop()
+		atomic.StoreInt32(&co.isExisting, 1)
+
 		close(co.exitChan)
+
+		conns := co.GetConns()
+		for _, v := range conns {
+			v.Stop()
+		}
 	})
 }
 
 func (co *Consumer) AddHandler(handler Handler) {
-	if atomic.LoadInt32(&co.state) == common.ConsumerConnected {
-		panic("already connected")
-	}
-
 	go co.handlerLoop(handler)
 }
 
@@ -73,24 +96,139 @@ exit:
 	log.Infof("handlerLoop exit")
 }
 
+func (co *Consumer) Existing() bool {
+	return atomic.LoadInt32(&co.isExisting) == 1
+}
+
 func (co *Consumer) ConnectToEMQD(addr string) error {
-	if !atomic.CompareAndSwapInt32(&co.state, common.ConsumerInit, common.ConsumerConnected) {
+	if co.Existing() {
 		return fmt.Errorf("consumer can not connect")
 	}
 
-	co.conn = NewConn(addr, co.msgChan)
-	if err := co.conn.Connect(); err != nil {
+	conn := NewConn(addr, co.msgChan)
+	if err := conn.Connect(); err != nil {
 		co.Exit()
 		return err
 	}
 
 	cmd := command.SubscribeCmd(co.topic, co.channel)
-	if _, err := co.conn.Command(cmd); err != nil {
+	if _, err := conn.Command(cmd); err != nil {
 		co.Exit()
 		return fmt.Errorf("SubscribeCmd error: %v", err)
 	}
 
+	co.mtx.Lock()
+	co.conns[addr] = conn
+	co.mtx.Unlock()
+
 	log.Infof("ConnectToEMQD %s", addr)
 
 	return nil
+}
+
+func (co *Consumer) ConnectToLookupd(addr string) error {
+	if co.Existing() {
+		return fmt.Errorf("consumer can not connect")
+	}
+
+	co.mtx.Lock()
+	// 判重
+	for _, v := range co.lookupdAddrs {
+		if v == addr {
+			co.mtx.Unlock()
+			return nil
+		}
+	}
+
+	co.lookupdAddrs = append(co.lookupdAddrs, addr)
+	if co.lookupClient == nil {
+		co.lookupClient = resty.New()
+	}
+	numlookupd := len(co.lookupdAddrs)
+	co.mtx.Unlock()
+
+	// 如果是第一个，那么启动循环
+	if numlookupd == 1 {
+		co.queryLookupd()         // 先查询一次
+		co.wg.Wrap(co.lookupLoop) // 定时器循环查询
+	}
+
+	return nil
+}
+
+func (co *Consumer) lookupLoop() {
+	ticker := time.NewTicker(common.HeartbeatTimeout)
+
+	for {
+		select {
+		case <-ticker.C:
+			co.queryLookupd()
+		case <-co.exitChan:
+			goto exit
+		}
+	}
+
+exit:
+	ticker.Stop()
+	log.Infof("lookupLoop exit")
+}
+
+func (co *Consumer) nextLookupdEndpoint() string {
+	co.mtx.RLock()
+	if co.lookupdQueryIndex >= len(co.lookupdAddrs) {
+		co.lookupdQueryIndex = 0
+	}
+	addr := co.lookupdAddrs[co.lookupdQueryIndex]
+	co.mtx.RUnlock()
+	co.lookupdQueryIndex = (co.lookupdQueryIndex + 1) % len(co.lookupdAddrs)
+
+	return addr
+}
+
+func (co *Consumer) queryLookupd() {
+	retryNum := 0
+
+retry:
+	endpoint := co.nextLookupdEndpoint()
+	log.Infof("queryLookupd %s", endpoint)
+	req := map[string]string{
+		"topic": co.topic,
+	}
+	url := endpoint + "/lookup"
+	resp, err := co.lookupClient.R().SetQueryParams(req).Get(url)
+	if err != nil {
+		log.Infof("queryLookupd error: %v, endpoint: %s", err, endpoint)
+		retryNum++
+		if retryNum < 3 {
+			log.Infof("retry queryLookupd")
+			goto retry
+		}
+		return
+	}
+
+	data := lookupResp{}
+	if err := json.Unmarshal(resp.Body(), &data); err != nil {
+		log.Infof("queryLookupd Unmarshal error%v", err)
+		return
+	}
+
+	for _, v := range data.Producers {
+		err := co.ConnectToEMQD(v.TCPAddress)
+		if err != nil {
+			log.Infof("ConnectToEMQD error: %v", err)
+			continue
+		}
+	}
+
+}
+
+type lookupResp struct {
+	Channels  []string    `json:"channels"`
+	Producers []*peerInfo `json:"producers"`
+}
+
+type peerInfo struct {
+	TCPAddress       string `json:"tcp_address"`
+	HTTPAddress      string `json:"http_address"`
+	BroadcastAddress string `json:"broadcast_address"`
 }

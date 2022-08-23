@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/ericluj/elog v1.2.2
 	github.com/gin-gonic/gin v1.8.1
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/judwhite/go-svc v1.2.1
 	github.com/stretchr/testify v1.7.1
 )
@@ -26,7 +27,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
+	golang.org/x/net v0.0.0-20211029224645-99673261e6eb // indirect
 	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
