@@ -1,8 +1,11 @@
 package emqd
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -137,22 +140,6 @@ func (e *EMQD) Notify(v interface{}) {
 	})
 }
 
-func (e *EMQD) LoadMetadata() error {
-	atomic.StoreInt32(&e.isLoading, 1) // 数据加载中
-	defer atomic.StoreInt32(&e.isLoading, 0)
-
-	// TODO: 执行逻辑
-
-	return nil
-}
-
-func (e *EMQD) PersistMetadata() error {
-
-	// TODO: 执行逻辑
-
-	return nil
-}
-
 func (e *EMQD) GetTopic(topicName string) *Topic {
 	// 可以不要这个读锁，直接写锁然后去处理，这么做为了提升性能
 	e.mtx.RLock() // 加读锁，防止被写入
@@ -184,4 +171,86 @@ func (e *EMQD) GetTopic(topicName string) *Topic {
 
 	t.Start()
 	return t
+}
+
+func (e *EMQD) LoadMetadata() error {
+	atomic.StoreInt32(&e.isLoading, 1) // 数据加载中
+	defer atomic.StoreInt32(&e.isLoading, 0)
+
+	fileName := metadataFile(e.GetOpts())
+
+	data, err := util.ReadFile(fileName)
+	if err != nil {
+		return err
+	}
+
+	// 没有读取到文件内容，不往下执行了
+	if data == nil {
+		return nil
+	}
+
+	var m Metadata
+	err = json.Unmarshal(data, &m)
+	if err != nil {
+		return err
+	}
+
+	for _, t := range m.Topics {
+		topic := e.GetTopic(t.Name)
+		for _, c := range t.Channels {
+			topic.GetChannel(c.Name)
+		}
+		topic.Start()
+	}
+
+	return nil
+}
+
+func (e *EMQD) PersistMetadata() error {
+	fileName := metadataFile(e.GetOpts())
+	log.Infof("PersistMetadata to: %s", fileName)
+
+	// 获取数据
+	data, err := json.Marshal(e.GetMetadata())
+	if err != nil {
+		return err
+	}
+
+	// 写到临时文件
+	tmpFileName := fmt.Sprintf("%s.%d.tmp", fileName, rand.Int())
+	err = util.WriteSyncFile(tmpFileName, data)
+	if err != nil {
+		return err
+	}
+
+	// 临时文件改名
+	err = os.Rename(tmpFileName, fileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *EMQD) GetMetadata() *Metadata {
+	m := &Metadata{
+		Topics: make([]TopicMetadata, 0),
+	}
+
+	for _, topic := range e.topicMap {
+		topicData := TopicMetadata{
+			Name: topic.name,
+		}
+
+		topic.mtx.Lock()
+		for _, channel := range topic.channelMap {
+			topicData.Channels = append(topicData.Channels, ChannelMetadata{
+				Name: channel.name,
+			})
+		}
+		topic.mtx.Unlock()
+		m.Topics = append(m.Topics, topicData)
+	}
+
+	return m
 }

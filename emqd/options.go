@@ -16,6 +16,7 @@ type Options struct {
 	MemQueueSize        int64
 	MaxMsgSize          int64
 	LookupdTCPAddresses []string
+	DataPath            string
 }
 
 func NewOptions() *Options {
@@ -39,5 +40,6 @@ func NewOptions() *Options {
 		},
 		MemQueueSize: 10000,
 		MaxMsgSize:   1024 * 1024,
+		DataPath:     "./",
 	}
 }
