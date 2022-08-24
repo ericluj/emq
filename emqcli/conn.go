@@ -23,13 +23,15 @@ type Conn struct {
 	msgChan chan *Message
 
 	exitChan chan int
+	delegate ConnDelegate
 }
 
-func NewConn(addr string, msgChan chan *Message) *Conn {
+func NewConn(addr string, msgChan chan *Message, delegate ConnDelegate) *Conn {
 	return &Conn{
 		addr:     addr,
 		msgChan:  msgChan,
 		exitChan: make(chan int),
+		delegate: delegate,
 	}
 }
 
@@ -41,6 +43,7 @@ func (c *Conn) write(p []byte) (int, error) {
 	return c.conn.Write(p)
 }
 
+// 主动停止
 func (c *Conn) Stop() {
 	if c.conn != nil {
 		c.conn.Close()
@@ -49,6 +52,8 @@ func (c *Conn) Stop() {
 	close(c.exitChan)
 
 	c.wg.Wait()
+
+	c.delegate.OnClose(c)
 }
 
 func (c *Conn) Connect() error {
@@ -133,6 +138,7 @@ func (c *Conn) readLoop() {
 	}
 
 exit:
+	c.delegate.OnClose(c)
 	log.Infof("readLoop exiting")
 }
 

@@ -2,6 +2,7 @@ package emqcli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -15,6 +16,8 @@ import (
 )
 
 var instCount int64
+
+var ErrAlreadyConnected = errors.New("already connected")
 
 type Consumer struct {
 	mtx               sync.RWMutex
@@ -43,8 +46,9 @@ func NewConsumer(topic, channel string) *Consumer {
 		id:       atomic.AddInt64(&instCount, 1),
 		topic:    topic,
 		channel:  channel,
-		exitChan: make(chan int),
+		conns:    make(map[string]*Conn),
 		msgChan:  make(chan *Message),
+		exitChan: make(chan int),
 	}
 	return c
 }
@@ -61,7 +65,7 @@ func (co *Consumer) GetConns() []*Conn {
 	return conns
 }
 
-func (co *Consumer) Exit() {
+func (co *Consumer) Stop() {
 	co.exitOnce.Do(func() {
 		atomic.StoreInt32(&co.isExisting, 1)
 
@@ -72,6 +76,12 @@ func (co *Consumer) Exit() {
 			v.Stop()
 		}
 	})
+}
+
+func (co *Consumer) OnClose(conn *Conn) {
+	co.mtx.Lock()
+	delete(co.conns, conn.addr)
+	co.mtx.Unlock()
 }
 
 func (co *Consumer) AddHandler(handler Handler) {
@@ -105,15 +115,22 @@ func (co *Consumer) ConnectToEMQD(addr string) error {
 		return fmt.Errorf("consumer can not connect")
 	}
 
-	conn := NewConn(addr, co.msgChan)
+	co.mtx.Lock()
+	if _, ok := co.conns[addr]; ok {
+		co.mtx.Unlock()
+		return ErrAlreadyConnected
+	}
+	co.mtx.Unlock()
+
+	conn := NewConn(addr, co.msgChan, co)
 	if err := conn.Connect(); err != nil {
-		co.Exit()
+		co.Stop()
 		return err
 	}
 
 	cmd := command.SubscribeCmd(co.topic, co.channel)
 	if _, err := conn.Command(cmd); err != nil {
-		co.Exit()
+		co.Stop()
 		return fmt.Errorf("SubscribeCmd error: %v", err)
 	}
 
@@ -194,7 +211,7 @@ retry:
 	req := map[string]string{
 		"topic": co.topic,
 	}
-	url := endpoint + "/lookup"
+	url := "http://" + endpoint + "/lookup"
 	resp, err := co.lookupClient.R().SetQueryParams(req).Get(url)
 	if err != nil {
 		log.Infof("queryLookupd error: %v, endpoint: %s", err, endpoint)
@@ -214,7 +231,7 @@ retry:
 
 	for _, v := range data.Producers {
 		err := co.ConnectToEMQD(v.TCPAddress)
-		if err != nil {
+		if err != nil && err != ErrAlreadyConnected {
 			log.Infof("ConnectToEMQD error: %v", err)
 			continue
 		}

@@ -15,14 +15,22 @@ func main() {
 	consumer := emqcli.NewConsumer("test", "one")
 
 	consumer.AddHandler(&ConsumerHandler{})
-	err := consumer.ConnectToEMQD("127.0.0.1:6001")
+
+	// 直连emqd
+	// err := consumer.ConnectToEMQD("127.0.0.1:6001")
+	// if err != nil {
+	// 	log.Fatalf("ConnectToEMQD fatal: %v", err)
+	// }
+
+	// 连接lookupd
+	err := consumer.ConnectToLookupd("127.0.0.1:7002")
 	if err != nil {
-		log.Fatalf("ConnectToEMQD fatal: %v", err)
+		log.Fatalf("ConnectToLookupd fatal: %v", err)
 	}
 
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
-	consumer.Exit()
+	consumer.Stop()
 }
 
 type ConsumerHandler struct{}
