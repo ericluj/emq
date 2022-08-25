@@ -7,17 +7,6 @@ import (
 	"github.com/ericluj/emq/internal/common"
 )
 
-type MessageID [common.MsgIDLength]byte
-
-type Message struct {
-	ID        MessageID
-	Body      []byte
-	Timestamp int64
-	Attempts  uint16
-
-	EMQDAddress string
-}
-
 // 数据格式：timestamp(8byte) + attempts(2byte) + messageID(16byte) + body
 func DecodeMessage(b []byte) (*Message, error) {
 	var msg Message
@@ -32,4 +21,20 @@ func DecodeMessage(b []byte) (*Message, error) {
 	msg.Body = b[10+common.MsgIDLength:]
 
 	return &msg, nil
+}
+
+type MessageID [common.MsgIDLength]byte
+
+type Message struct {
+	ID        MessageID
+	Body      []byte
+	Timestamp int64
+	Attempts  uint16
+
+	delegate Delegate
+	conn     *Conn
+}
+
+func (m *Message) Requeue() {
+	m.delegate.OnRequeue(m)
 }

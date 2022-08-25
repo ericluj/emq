@@ -11,8 +11,6 @@ import (
 )
 
 func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
-	var err error
-
 	if atomic.LoadInt32(&client.state) != common.ClientInit {
 		return nil, fmt.Errorf("IDENTITY: cannot in current state")
 	}
@@ -99,5 +97,27 @@ func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
 
 func (p *Protocol) NOP(client *Client, params [][]byte) ([]byte, error) {
 	log.Infof("NOP")
+	return common.OKBytes, nil
+}
+
+func (p *Protocol) REQ(client *Client, params [][]byte) ([]byte, error) {
+	if atomic.LoadInt32(&client.state) != common.ClientSubscribed {
+		return nil, fmt.Errorf("REQ: cannot in current state")
+	}
+
+	if len(params) < 2 {
+		return nil, fmt.Errorf("REQ: insufficient number of parameters")
+	}
+
+	id, err := getMessageID(params[1])
+	if err != nil {
+		return nil, fmt.Errorf("REQ: invalid messageID")
+	}
+
+	err = client.channel.RequeueMessage(client.ID, id)
+	if err != nil {
+		return nil, fmt.Errorf("REQ: RequeueMessage %v", err)
+	}
+
 	return common.OKBytes, nil
 }

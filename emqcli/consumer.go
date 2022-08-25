@@ -84,6 +84,14 @@ func (co *Consumer) OnClose(conn *Conn) {
 	co.mtx.Unlock()
 }
 
+func (co *Consumer) OnRequeue(msg *Message) {
+	cmd := command.RequeueCmd(msg.ID[:])
+	if _, err := msg.conn.Command(cmd); err != nil {
+		log.Infof("OnRequeue error: %v", err)
+		co.Stop()
+	}
+}
+
 func (co *Consumer) AddHandler(handler Handler) {
 	go co.handlerLoop(handler)
 }
@@ -95,6 +103,9 @@ func (co *Consumer) handlerLoop(handler Handler) {
 			err := handler.HandleMessage(msg)
 			if err != nil {
 				log.Infof("HandleMessage error: %v", err)
+				msg.delegate = co
+				msg.Requeue()
+
 				continue
 			}
 		case <-co.exitChan:

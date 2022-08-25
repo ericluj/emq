@@ -14,6 +14,7 @@ const (
 	SUB        = "SUB"
 	PUB        = "PUB"
 	NOP        = "NOP"
+	REQ        = "REQ"
 	IDENTIFY   = "IDENTIFY"
 	REGISTER   = "REGISTER"
 	UNREGISTER = "UNREGISTER"
@@ -67,6 +68,11 @@ func PublishCmd(topic string, body []byte) *Command {
 
 func NopCmd() *Command {
 	return &Command{[]byte(NOP), nil, nil}
+}
+
+func RequeueCmd(id []byte) *Command {
+	var params = [][]byte{id[:]}
+	return &Command{Name: []byte(REQ), Params: params, Body: nil}
 }
 
 // emqcli to emqd

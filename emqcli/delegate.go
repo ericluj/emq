@@ -1,5 +1,7 @@
 package emqcli
 
-type ConnDelegate interface {
+type Delegate interface {
 	OnClose(*Conn)
+
+	OnRequeue(*Message)
 }

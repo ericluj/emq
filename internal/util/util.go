@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 )
 
@@ -30,7 +29,7 @@ func WriteSyncFile(fn string, data []byte) error {
 
 // 读取文件内容，如果文件不存在返回空
 func ReadFile(fn string) ([]byte, error) {
-	data, err := ioutil.ReadFile(fn)
+	data, err := os.ReadFile(fn)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err

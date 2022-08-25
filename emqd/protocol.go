@@ -118,12 +118,17 @@ func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
 		return p.SUB(client, params)
 	case bytes.Equal(params[0], []byte(command.NOP)):
 		return p.NOP(client, params)
+	case bytes.Equal(params[0], []byte(command.REQ)):
+		return p.REQ(client, params)
 	}
 	return nil, protocol.NewFatalClientErr(nil, protocol.ErrTypeInvalid, fmt.Sprintf("invalid command %s", params[0]))
 }
 
 func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
-	var memoryMsgChan chan *Message // 消息队列（初始为nil，不会被执行）
+	var (
+		memoryMsgChan chan *Message // 消息队列（初始为nil，不会被执行）
+		subChannel    *Channel      // 订阅的channel
+	)
 	heartbeatTicker := time.NewTicker(common.HeartbeatTimeout)
 
 	close(startedChan)
@@ -131,11 +136,13 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 	for {
 		select {
 		// 订阅
-		case subChannel := <-client.subEventChan:
+		case subChannel = <-client.subEventChan:
 			client.subEventChan = nil                // 订阅事件发生，置为nil让它不能再次订阅
 			memoryMsgChan = subChannel.memoryMsgChan // 用memoryMsgChan是为了防止空指针
 		// 获取消息
 		case msg := <-memoryMsgChan:
+			msg.Attempts++
+			subChannel.StartInFlight(msg, client.ID)
 			err := p.SendMessage(client, msg)
 			if err != nil {
 				log.Infof("PROTOCOL: SendMessage %s error: %v", client.conn.RemoteAddr(), err)

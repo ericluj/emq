@@ -23,10 +23,10 @@ type Conn struct {
 	msgChan chan *Message
 
 	exitChan chan int
-	delegate ConnDelegate
+	delegate Delegate
 }
 
-func NewConn(addr string, msgChan chan *Message, delegate ConnDelegate) *Conn {
+func NewConn(addr string, msgChan chan *Message, delegate Delegate) *Conn {
 	return &Conn{
 		addr:     addr,
 		msgChan:  msgChan,
@@ -128,7 +128,7 @@ func (c *Conn) readLoop() {
 				log.Infof("DecodeMessage error: %v", err)
 				goto exit
 			}
-			msg.EMQDAddress = c.addr
+			msg.conn = c
 			c.msgChan <- msg
 		case common.FrameTypeError:
 			log.Infof("FrameTypeError: %v", err)

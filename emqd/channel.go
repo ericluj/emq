@@ -18,6 +18,9 @@ type Channel struct {
 
 	memoryMsgChan chan *Message
 	isExiting     int32
+
+	inFlightMtx      sync.Mutex
+	inFlightMessages map[MessageID]*Message
 }
 
 func (c *Channel) GetName() string {
@@ -30,11 +33,12 @@ func (c *Channel) GetMemoryMsgChan() chan *Message {
 
 func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 	c := &Channel{
-		emqd:          emqd,
-		topicName:     topicName,
-		name:          channelName,
-		clients:       make(map[int64]*Client),
-		memoryMsgChan: make(chan *Message, emqd.GetOpts().MemQueueSize),
+		emqd:             emqd,
+		topicName:        topicName,
+		name:             channelName,
+		clients:          make(map[int64]*Client),
+		memoryMsgChan:    make(chan *Message, emqd.GetOpts().MemQueueSize),
+		inFlightMessages: make(map[MessageID]*Message),
 	}
 
 	c.emqd.Notify(c) // 通知lookupd
@@ -152,4 +156,51 @@ func (c *Channel) RemoveClient(clientID int64) {
 	c.mtx.Lock()
 	delete(c.clients, clientID)
 	c.mtx.Unlock()
+}
+
+func (c *Channel) RequeueMessage(clientID int64, id MessageID) error {
+	msg, err := c.popInFlightMessage(clientID, id)
+	if err != nil {
+		return err
+	}
+
+	// TODO: exitMtx是否需要
+	if c.Exiting() {
+		return errors.New("exiting")
+	}
+	return c.PutMessage(msg)
+}
+
+func (c *Channel) pushInFlightMessage(msg *Message) {
+	c.inFlightMtx.Lock()
+	defer c.inFlightMtx.Unlock()
+
+	_, ok := c.inFlightMessages[msg.ID]
+	if ok {
+		return
+	}
+
+	c.inFlightMessages[msg.ID] = msg
+}
+
+func (c *Channel) popInFlightMessage(clientID int64, id MessageID) (*Message, error) {
+	c.inFlightMtx.Lock()
+	defer c.inFlightMtx.Unlock()
+
+	msg, ok := c.inFlightMessages[id]
+	if !ok {
+		return nil, errors.New("ID not in flight")
+	}
+
+	if msg.ClientID != clientID {
+		return nil, errors.New("client does not own message")
+	}
+
+	delete(c.inFlightMessages, id)
+	return msg, nil
+}
+
+func (c *Channel) StartInFlight(msg *Message, clientID int64) {
+	msg.ClientID = clientID
+	c.pushInFlightMessage(msg)
 }

@@ -36,3 +36,7 @@ func (p *Producer) Publish(topic string, body string) error {
 func (p *Producer) OnClose(conn *Conn) {
 
 }
+
+func (p *Producer) OnRequeue(msg *Message) {
+
+}

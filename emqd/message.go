@@ -2,6 +2,7 @@ package emqd
 
 import (
 	"encoding/binary"
+	"errors"
 	"time"
 
 	"github.com/ericluj/emq/internal/common"
@@ -12,6 +13,7 @@ type MessageID [common.MsgIDLength]byte
 
 type Message struct {
 	ID        MessageID
+	ClientID  int64
 	Timestamp int64
 	Attempts  uint16
 	Body      []byte
@@ -51,4 +53,15 @@ func (m *Message) Bytes() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func getMessageID(p []byte) (MessageID, error) {
+	var m MessageID
+
+	if len(p) != common.MsgIDLength {
+		return m, errors.New("invalid Message ID")
+	}
+
+	copy(m[:], p)
+	return m, nil
 }
