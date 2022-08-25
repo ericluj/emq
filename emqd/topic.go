@@ -54,11 +54,17 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 func (t *Topic) messagePump() {
 	var chans []*Channel
 
-	// 阻塞等待start
-	select {
-	case <-t.exitChan:
-		goto exit
-	case <-t.startChan:
+	// start后才开始执行数据
+	for {
+		select {
+		case <-t.exitChan:
+			goto exit
+		// 避免GetChannel时写入channelUpdateChan导致的阻塞
+		case <-t.channelUpdateChan:
+			continue
+		case <-t.startChan:
+		}
+		break
 	}
 
 	chans = t.GetChans()
