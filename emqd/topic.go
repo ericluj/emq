@@ -69,7 +69,10 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 
 // topic 执行所有逻辑的地方
 func (t *Topic) messagePump() {
-	var chans []*Channel
+	var (
+		chans []*Channel
+		msg   *Message
+	)
 
 	// start后才开始执行数据
 	for {
@@ -90,16 +93,29 @@ func (t *Topic) messagePump() {
 		// channel列表被修改了，重新获取
 		case <-t.channelUpdateChan:
 			chans = t.GetChans()
+			continue
 		// 获取到msg，给所有channel发送
-		case msg := <-t.memoryMsgChan:
-			for _, channel := range chans {
-				err := channel.PutMessage(msg)
-				if err != nil {
-					log.Infof("PutMessage error: %v,topic: %s, channel: %s, msg: %s", err, t.name, channel.name, msg.ID)
-				}
+		case msg = <-t.memoryMsgChan:
+
+		// 磁盘消息
+		case bs := <-t.backend.ReadChan():
+			m, err := protocol.DecodeMessage(bs)
+			if err != nil {
+				log.Infof("DecodeMessage error: %v, topic: %s, msg: %s", err, t.name, msg.ID)
+				continue
+			}
+			msg = &Message{
+				Message: m,
 			}
 		case <-t.exitChan:
 			goto exit
+		}
+
+		for _, channel := range chans {
+			err := channel.PutMessage(msg)
+			if err != nil {
+				log.Infof("PutMessage error: %v,topic: %s, channel: %s, msg: %s", err, t.name, channel.name, msg.ID)
+			}
 		}
 	}
 
