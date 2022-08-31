@@ -46,6 +46,11 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 		exitChan:          make(chan int),
 	}
 
+	// 如果设置为0，那么全部走磁盘数据，memoryMsgChan为nil不会再执行到相关逻辑
+	if emqd.GetOpts().MemQueueSize == 0 {
+		t.memoryMsgChan = nil
+	}
+
 	t.backend = diskqueue.New(
 		topicName,
 		emqd.GetOpts().DataPath,

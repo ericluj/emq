@@ -120,8 +120,9 @@ func (p *Protocol) Exec(client *Client, params [][]byte) ([]byte, error) {
 
 func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 	var (
-		memoryMsgChan chan *Message // 消息队列（初始为nil，不会被执行）
-		subChannel    *Channel      // 订阅的channel
+		memoryMsgChan  chan *Message // 消息队列（初始为nil，不会被执行）
+		backendMsgChan chan []byte
+		subChannel     *Channel // 订阅的channel
 	)
 	heartbeatTicker := time.NewTicker(common.HeartbeatTimeout)
 
@@ -133,11 +134,29 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 		case subChannel = <-client.subEventChan:
 			client.subEventChan = nil                // 订阅事件发生，置为nil让它不能再次订阅
 			memoryMsgChan = subChannel.memoryMsgChan // 用memoryMsgChan是为了防止空指针
+			backendMsgChan = subChannel.backend.ReadChan()
 		// 获取消息
 		case msg := <-memoryMsgChan:
 			msg.Attempts++
 			subChannel.StartInFlight(msg, client.ID)
 			err := p.SendMessage(client, msg)
+			if err != nil {
+				log.Infof("PROTOCOL: SendMessage %s error: %v", client.conn.RemoteAddr(), err)
+				goto exit
+			}
+		// 磁盘消息
+		case bs := <-backendMsgChan:
+			m, err := protocol.DecodeMessage(bs)
+			if err != nil {
+				log.Infof("PROTOCOL: DecodeMessage %s error: %v", client.conn.RemoteAddr(), err)
+				goto exit
+			}
+			msg := &Message{
+				Message: m,
+			}
+			msg.Attempts++
+			subChannel.StartInFlight(msg, client.ID)
+			err = p.SendMessage(client, msg)
 			if err != nil {
 				log.Infof("PROTOCOL: SendMessage %s error: %v", client.conn.RemoteAddr(), err)
 				goto exit

@@ -45,6 +45,11 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 		inFlightMessages: make(map[protocol.MessageID]*Message),
 	}
 
+	// 如果设置为0，那么全部走磁盘数据，memoryMsgChan为nil不会再执行到相关逻辑
+	if emqd.GetOpts().MemQueueSize == 0 {
+		c.memoryMsgChan = nil
+	}
+
 	c.backend = diskqueue.New(
 		fmt.Sprintf("%s:%s", topicName, channelName),
 		emqd.GetOpts().DataPath,
