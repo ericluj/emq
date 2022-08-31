@@ -9,6 +9,7 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/diskqueue"
+	"github.com/ericluj/emq/internal/protocol"
 	"github.com/ericluj/emq/internal/util"
 )
 
@@ -195,11 +196,11 @@ func (t *Topic) GetChannel(channelName string) *Channel {
 }
 
 // TODO:
-func (t *Topic) GenerateID() MessageID {
+func (t *Topic) GenerateID() protocol.MessageID {
 	id := atomic.AddUint64(&t.MessageID, 1)
 	b := make([]byte, 8)              // 8bit一个字节，64位8字节
 	binary.BigEndian.PutUint64(b, id) // 数字转为大端字节序
-	var h MessageID
+	var h protocol.MessageID
 	hex.Encode(h[:], b) // hex编码，会将字节长度扩大一倍（为了保证特殊字符的传递？）
 	return h
 }

@@ -3,7 +3,6 @@ package emqd
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"sync/atomic"
 	"time"
@@ -50,12 +49,7 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 
 		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
-			if err == io.EOF {
-				log.Infof("io.EOF")
-				err = nil
-			} else {
-				err = fmt.Errorf("read command error: %v", err)
-			}
+			log.Infof("ReadSlice error: %v", err)
 			break
 		}
 

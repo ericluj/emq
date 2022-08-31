@@ -123,10 +123,14 @@ func (c *Conn) readLoop() {
 		case common.FrameTypeResponse:
 
 		case common.FrameTypeMessage:
-			msg, err := DecodeMessage(body)
+			m, err := protocol.DecodeMessage(body)
 			if err != nil {
 				log.Infof("DecodeMessage error: %v", err)
 				goto exit
+			}
+
+			msg := &Message{
+				Message: m,
 			}
 			msg.conn = c
 			c.msgChan <- msg

@@ -8,6 +8,7 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/diskqueue"
+	"github.com/ericluj/emq/internal/protocol"
 )
 
 type Channel struct {
@@ -23,7 +24,7 @@ type Channel struct {
 	isExiting     int32
 
 	inFlightMtx      sync.Mutex
-	inFlightMessages map[MessageID]*Message
+	inFlightMessages map[protocol.MessageID]*Message
 }
 
 func (c *Channel) GetName() string {
@@ -41,7 +42,7 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 		name:             channelName,
 		clients:          make(map[int64]*Client),
 		memoryMsgChan:    make(chan *Message, emqd.GetOpts().MemQueueSize),
-		inFlightMessages: make(map[MessageID]*Message),
+		inFlightMessages: make(map[protocol.MessageID]*Message),
 	}
 
 	c.backend = diskqueue.New(
@@ -178,7 +179,7 @@ func (c *Channel) RemoveClient(clientID int64) {
 	c.mtx.Unlock()
 }
 
-func (c *Channel) RequeueMessage(clientID int64, id MessageID) error {
+func (c *Channel) RequeueMessage(clientID int64, id protocol.MessageID) error {
 	msg, err := c.popInFlightMessage(clientID, id)
 	if err != nil {
 		return err
@@ -203,7 +204,7 @@ func (c *Channel) pushInFlightMessage(msg *Message) {
 	c.inFlightMessages[msg.ID] = msg
 }
 
-func (c *Channel) popInFlightMessage(clientID int64, id MessageID) (*Message, error) {
+func (c *Channel) popInFlightMessage(clientID int64, id protocol.MessageID) (*Message, error) {
 	c.inFlightMtx.Lock()
 	defer c.inFlightMtx.Unlock()
 

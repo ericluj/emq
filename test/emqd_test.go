@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ericluj/emq/emqd"
+	"github.com/ericluj/emq/internal/protocol"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +32,7 @@ func TestPutMessage(t *testing.T) {
 	channelName := "ch"
 	channel := topic.GetChannel(channelName)
 
-	var id emqd.MessageID
+	var id protocol.MessageID
 	body := "one"
 	msg := emqd.NewMessage(id, []byte(body))
 	_ = topic.PutMessage(msg)

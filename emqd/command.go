@@ -109,7 +109,7 @@ func (p *Protocol) REQ(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("REQ: insufficient number of parameters")
 	}
 
-	id, err := getMessageID(params[1])
+	id, err := protocol.GetMessageID(params[1])
 	if err != nil {
 		return nil, fmt.Errorf("REQ: invalid messageID")
 	}
