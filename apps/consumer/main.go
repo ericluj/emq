@@ -12,7 +12,7 @@ import (
 func main() {
 	c := make(chan os.Signal, 1)
 
-	consumer := emqcli.NewConsumer("test", "one")
+	consumer := emqcli.NewConsumer("topictest", "channeltest")
 
 	consumer.AddHandler(&ConsumerHandler{})
 

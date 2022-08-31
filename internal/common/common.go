@@ -11,7 +11,8 @@ const (
 )
 
 const (
-	MsgIDLength = 16
+	MsgIDLength       = 16
+	MinValidMsgLength = MsgIDLength + 8 + 2 // Timestamp + Attempts
 )
 
 var (

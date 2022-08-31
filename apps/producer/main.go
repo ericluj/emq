@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"time"
+
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/emqcli"
 )
@@ -10,9 +13,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewProducer fatal: %v", err)
 	}
-	err = producer.Publish("test", "ceshi 测试")
+	msg := fmt.Sprintf("msg测试%d", time.Now().Unix())
+	err = producer.Publish("topictest", msg)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
+	log.Infof(msg)
 	log.Infof("end")
 }

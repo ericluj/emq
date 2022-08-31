@@ -2,10 +2,12 @@ package emqd
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/diskqueue"
 )
 
 type Channel struct {
@@ -15,6 +17,7 @@ type Channel struct {
 	topicName string
 	name      string
 	clients   map[int64]*Client
+	backend   *diskqueue.Diskqueue
 
 	memoryMsgChan chan *Message
 	isExiting     int32
@@ -40,6 +43,15 @@ func NewChannel(topicName, channelName string, emqd *EMQD) *Channel {
 		memoryMsgChan:    make(chan *Message, emqd.GetOpts().MemQueueSize),
 		inFlightMessages: make(map[MessageID]*Message),
 	}
+
+	c.backend = diskqueue.New(
+		fmt.Sprintf("%s:%s", topicName, channelName),
+		emqd.GetOpts().DataPath,
+		emqd.GetOpts().SyncEvery,
+		emqd.GetOpts().MaxBytesPerFile,
+		int32(emqd.GetOpts().MinMsgSize),
+		int32(emqd.GetOpts().MaxMsgSize),
+		emqd.GetOpts().SyncTimeout)
 
 	c.emqd.Notify(c) // 通知lookupd
 
@@ -99,7 +111,7 @@ func (c *Channel) Empty() {
 	}
 }
 
-func (c *Channel) PutMessage(msg *Message) error {
+func (c *Channel) PutMessage(m *Message) error {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 
@@ -108,12 +120,20 @@ func (c *Channel) PutMessage(msg *Message) error {
 	}
 
 	select {
-	case c.memoryMsgChan <- msg:
+	case c.memoryMsgChan <- m:
 	default:
-		break
+		// 写入磁盘
+		data, err := m.Bytes()
+		if err != nil {
+			log.Infof("Bytes error: %v, channel: %s", err, c.name)
+			return err
+		}
+		err = c.backend.Put(data)
+		if err != nil {
+			log.Infof("put error: %v, channel: %s", err, c.name)
+			return err
+		}
 	}
-
-	// TODO: 写入磁盘
 
 	return nil
 }

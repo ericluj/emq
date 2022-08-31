@@ -5,18 +5,24 @@ import (
 	"hash/crc32"
 	"io"
 	"os"
+	"time"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/common"
 )
 
 type Options struct {
 	ID                  int64
 	TCPAddress          string
 	HTTPAddress         string
-	MemQueueSize        int64
-	MaxMsgSize          int64
 	LookupdTCPAddresses []string
 	DataPath            string
+	MemQueueSize        int64
+	MinMsgSize          int64
+	MaxMsgSize          int64
+	MaxBytesPerFile     int64
+	SyncEvery           int64
+	SyncTimeout         time.Duration
 }
 
 func NewOptions() *Options {
@@ -38,8 +44,12 @@ func NewOptions() *Options {
 		LookupdTCPAddresses: []string{
 			"127.0.0.1:7001",
 		},
-		MemQueueSize: 10000,
-		MaxMsgSize:   1024 * 1024,
-		DataPath:     "./",
+		DataPath:        "./tmp",
+		MemQueueSize:    10000,
+		MinMsgSize:      common.MinValidMsgLength,
+		MaxMsgSize:      common.MinValidMsgLength + 1024*1024,
+		MaxBytesPerFile: 100 * 1024 * 1024,
+		SyncEvery:       2000,
+		SyncTimeout:     2 * time.Second,
 	}
 }

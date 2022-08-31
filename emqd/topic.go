@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	log "github.com/ericluj/elog"
+	"github.com/ericluj/emq/internal/diskqueue"
 	"github.com/ericluj/emq/internal/util"
 )
 
@@ -18,6 +19,7 @@ type Topic struct {
 
 	name       string
 	channelMap map[string]*Channel
+	backend    *diskqueue.Diskqueue
 
 	memoryMsgChan     chan *Message
 	channelUpdateChan chan int
@@ -42,6 +44,15 @@ func NewTopic(topicName string, emqd *EMQD) *Topic {
 		startChan:         make(chan int),
 		exitChan:          make(chan int),
 	}
+
+	t.backend = diskqueue.New(
+		topicName,
+		emqd.GetOpts().DataPath,
+		emqd.GetOpts().SyncEvery,
+		emqd.GetOpts().MaxBytesPerFile,
+		int32(emqd.GetOpts().MinMsgSize),
+		int32(emqd.GetOpts().MaxMsgSize),
+		emqd.GetOpts().SyncTimeout)
 
 	t.wg.Wrap(t.messagePump)
 
@@ -204,10 +215,18 @@ func (t *Topic) PutMessage(m *Message) error {
 	select {
 	case t.memoryMsgChan <- m:
 	default:
-		break
+		// 写入磁盘
+		data, err := m.Bytes()
+		if err != nil {
+			log.Infof("Bytes error: %v, topic: %s", err, t.name)
+			return err
+		}
+		err = t.backend.Put(data)
+		if err != nil {
+			log.Infof("Put error: %v, topic: %s", err, t.name)
+			return err
+		}
 	}
-
-	// TODO: 写入磁盘
 
 	return nil
 }
