@@ -29,7 +29,7 @@ func NewProducer(addr string) (*Producer, error) {
 
 func (p *Producer) Publish(topic string, body string) error {
 	cmd := command.PublishCmd(topic, []byte(body))
-	_, err := p.conn.Command(cmd)
+	err := p.conn.Command(cmd)
 	return err
 }
 

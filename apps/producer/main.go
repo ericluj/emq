@@ -13,11 +13,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewProducer fatal: %v", err)
 	}
-	msg := fmt.Sprintf("msg测试%d", time.Now().Unix())
-	err = producer.Publish("topictest", msg)
-	if err != nil {
-		log.Fatalf("error: %v", err)
+	for {
+		msg := fmt.Sprintf("msg测试-%d", time.Now().Unix())
+		log.Infof(msg)
+		err = producer.Publish("topictest", msg)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+
+		time.Sleep(time.Second)
 	}
-	log.Infof(msg)
-	log.Infof("end")
 }

@@ -86,7 +86,7 @@ func (co *Consumer) OnClose(conn *Conn) {
 
 func (co *Consumer) OnRequeue(msg *Message) {
 	cmd := command.RequeueCmd(msg.ID[:])
-	if _, err := msg.conn.Command(cmd); err != nil {
+	if err := msg.conn.Command(cmd); err != nil {
 		log.Infof("OnRequeue error: %v", err)
 		co.Stop()
 	}
@@ -140,7 +140,7 @@ func (co *Consumer) ConnectToEMQD(addr string) error {
 	}
 
 	cmd := command.SubscribeCmd(co.topic, co.channel)
-	if _, err := conn.Command(cmd); err != nil {
+	if err := conn.Command(cmd); err != nil {
 		co.Stop()
 		return fmt.Errorf("SubscribeCmd error: %v", err)
 	}

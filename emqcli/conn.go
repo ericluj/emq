@@ -2,7 +2,6 @@ package emqcli
 
 import (
 	"bytes"
-	"errors"
 	"net"
 	"sync"
 	"time"
@@ -78,10 +77,11 @@ func (c *Conn) Connect() error {
 		c.conn.Close()
 		return err
 	}
-	_, err = c.Command(cmd)
+	err = c.Command(cmd)
 	if err != nil {
 		return err
 	}
+	// TODO: 返回数据处理
 
 	c.wg.Wrap(c.readLoop)
 
@@ -111,7 +111,7 @@ func (c *Conn) readLoop() {
 
 		// 心跳处理
 		if frameType == common.FrameTypeResponse && bytes.Equal(body, common.HeartbeatBytes) {
-			_, err := c.Command(command.NopCmd())
+			err := c.Command(command.NopCmd())
 			if err != nil {
 				log.Infof("Command error: %v", err)
 				goto exit
@@ -121,7 +121,7 @@ func (c *Conn) readLoop() {
 
 		switch frameType {
 		case common.FrameTypeResponse:
-
+			log.Infof("FrameTypeResponse: %s", string(body))
 		case common.FrameTypeMessage:
 			m, err := protocol.DecodeMessage(body)
 			if err != nil {
@@ -146,25 +146,18 @@ exit:
 	log.Infof("readLoop exiting")
 }
 
-func (c *Conn) Command(cmd *command.Command) ([]byte, error) {
+func (c *Conn) Command(cmd *command.Command) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
 	err := c.conn.SetWriteDeadline(time.Now().Add(common.WriteTimeout))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := cmd.Write(c.conn); err != nil {
-		return nil, err
-	}
-	frameType, body, err := protocol.ReadFrameData(c.conn)
-	if err != nil {
-		return nil, err
-	}
-	if frameType == common.FrameTypeError {
-		return nil, errors.New(string(body))
+		return err
 	}
 
-	return body, nil
+	return nil
 }
