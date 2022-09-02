@@ -3,6 +3,7 @@ package emqd
 import (
 	"net/http"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,6 +16,7 @@ func newHTTPServer() *HTTPServer {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+	pprof.Register(router) // 性能
 	router.GET("/ping", s.ping)
 
 	s.router = router

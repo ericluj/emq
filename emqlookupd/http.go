@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	log "github.com/ericluj/elog"
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,6 +20,7 @@ func newHTTPServer(l *EMQLookupd) *HTTPServer {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+	pprof.Register(router) // 性能
 	router.GET("/ping", s.ping)
 	router.GET("/lookup", s.lookup)
 	router.GET("/topics", s.topics)
