@@ -11,14 +11,14 @@ import (
 func main() {
 	producer, err := emqcli.NewProducer("127.0.0.1:6001")
 	if err != nil {
-		log.Fatalf("NewProducer fatal: %v", err)
+		log.Fatalf("NewProducer: %v", err)
 	}
 	for {
 		msg := fmt.Sprintf("msg测试-%d", time.Now().Unix())
-		log.Infof(msg)
+		log.Debugf(msg)
 		err = producer.Publish("topictest", msg)
 		if err != nil {
-			log.Fatalf("error: %v", err)
+			log.Fatalf("Publish: %v", err)
 		}
 
 		time.Sleep(time.Second)

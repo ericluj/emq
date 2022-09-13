@@ -22,14 +22,14 @@ func TCPServer(listener net.Listener, handler TCPHandler) error {
 		clientConn, err := listener.Accept()
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				log.Infof("network timeout error: %v", err)
+				log.Errorf("timeout: %v", err)
 				// 如果是超时等临时错误，先暂停当前goruntine交出调度，时间片轮转到后再恢复后续操作
 				runtime.Gosched()
 				continue
 			}
 
 			if !strings.Contains(err.Error(), "use of closed network connection") {
-				log.Infof("network error: %v", err)
+				log.Errorf("Accept: %v", err)
 				return err
 			}
 

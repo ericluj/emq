@@ -43,13 +43,13 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 		// 设置deadline
 		err = client.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
 		if err != nil {
-			log.Infof("SetReadDeadline error: %v", err)
+			log.Errorf("SetReadDeadline: %v", err)
 			return err
 		}
 
 		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
-			log.Infof("ReadSlice error: %v", err)
+			log.Errorf("ReadSlice: %v", err)
 			break
 		}
 
@@ -61,12 +61,12 @@ func (p *Protocol) IOLoop(c protocol.Client) error {
 		}
 		// 空格拆分
 		params := bytes.Split(line, common.SeparatorBytes)
-		log.Infof("PROTOCOL: %s, %s", client.conn.RemoteAddr(), params)
+		log.Debugf("PROTOCOL: %s, %s", client.conn.RemoteAddr(), params)
 
 		var response []byte
 		response, err = p.Exec(client, params)
 		if err != nil {
-			log.Infof("Exec error: %v", err)
+			log.Errorf("Exec: %v", err)
 			sendErr := p.Send(client, common.FrameTypeError, []byte(err.Error()))
 			if sendErr != nil {
 				err = fmt.Errorf("send FrameTypeError error: %v", err)
@@ -141,14 +141,14 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 			subChannel.StartInFlight(msg, client.ID)
 			err := p.SendMessage(client, msg)
 			if err != nil {
-				log.Infof("PROTOCOL: SendMessage %s error: %v", client.conn.RemoteAddr(), err)
+				log.Errorf("SendMessage: %v, RemoteAddr: %s", err, client.conn.RemoteAddr())
 				goto exit
 			}
 		// 磁盘消息
 		case bs := <-backendMsgChan:
 			m, err := protocol.DecodeMessage(bs)
 			if err != nil {
-				log.Infof("PROTOCOL: DecodeMessage %s error: %v", client.conn.RemoteAddr(), err)
+				log.Errorf("DecodeMessage: %v, RemoteAddr: %s", err, client.conn.RemoteAddr())
 				goto exit
 			}
 			msg := &Message{
@@ -158,7 +158,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 			subChannel.StartInFlight(msg, client.ID)
 			err = p.SendMessage(client, msg)
 			if err != nil {
-				log.Infof("PROTOCOL: SendMessage %s error: %v", client.conn.RemoteAddr(), err)
+				log.Errorf("SendMessage: %v RemoteAddr: %s", client.conn.RemoteAddr(), err)
 				goto exit
 			}
 		// 心跳
@@ -166,7 +166,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 			log.Infof("send heartbeat to %s", client.conn.RemoteAddr())
 			err := p.Send(client, common.FrameTypeResponse, common.HeartbeatBytes)
 			if err != nil {
-				log.Infof("PROTOCOL: heartbeat %s error: %v", client.conn.RemoteAddr(), err)
+				log.Errorf("Send heartbeat: %v, RemoteAddr: %s", err, client.conn.RemoteAddr())
 				goto exit
 			}
 		// 退出
@@ -176,7 +176,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 	}
 
 exit:
-	log.Infof("PROTOCOL: %s exiting messagePump", client.conn.RemoteAddr())
+	log.Infof("exiting messagePump RemoteAddr: %s", client.conn.RemoteAddr())
 	heartbeatTicker.Stop()
 }
 

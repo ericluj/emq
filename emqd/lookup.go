@@ -27,7 +27,7 @@ func (e *EMQD) lookupLoop() {
 				lookupPeer := NewLookupPeer(addr)
 				err := lookupPeer.Connect(e)
 				if err != nil {
-					log.Infof("Connect error: %v", err)
+					log.Errorf("Connect: %v", err)
 					// TODO: 是否要抛error
 					goto exit
 				}
@@ -45,7 +45,7 @@ func (e *EMQD) lookupLoop() {
 				cmd := command.PingCmd()
 				_, err := lp.Command(cmd)
 				if err != nil {
-					log.Infof("lookup: %s, cmd: %s, error: %v", lp.addr, cmd, err)
+					log.Errorf("Command: %v, lookup: %s, cmd: %s", err, lp.addr, cmd)
 				}
 			}
 		case val := <-e.notifyChan:
@@ -77,7 +77,7 @@ func (e *EMQD) lookupLoop() {
 				log.Infof("lookup: %s, branch: %s, cmd: %s", lp.addr, branch, cmd)
 				_, err := lp.Command(cmd)
 				if err != nil {
-					log.Infof("lookup: %s, branch: %s, cmd: %s, eror: %v", lp.addr, branch, cmd, err)
+					log.Errorf("Command: %v, lookup: %s, branch: %s, cmd: %s,", err, lp.addr, branch, cmd)
 				}
 			}
 		case <-e.exitChan:

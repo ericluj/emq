@@ -22,7 +22,7 @@ func (t *TCPServer) Handle(conn net.Conn) {
 	buf := make([]byte, common.ProtoMagicLen)
 	_, err := io.ReadFull(conn, buf)
 	if err != nil {
-		log.Infof("proto magic read error: %v", err)
+		log.Errorf("ReadFull: %v", err)
 		conn.Close()
 		return
 	}
@@ -43,7 +43,7 @@ func (t *TCPServer) Handle(conn net.Conn) {
 	default:
 		err := protocol.SendFrameData(conn, common.FrameTypeError, common.BadProtocolBytes)
 		if err != nil {
-			log.Infof("SendFrameData error: %v", err)
+			log.Errorf("SendFrameData: %v", err)
 		}
 		conn.Close()
 		log.Infof("client %s: bad protocol magic '%s'", conn.RemoteAddr(), pm)
@@ -56,7 +56,7 @@ func (t *TCPServer) Handle(conn net.Conn) {
 	// client处理工作
 	err = prot.IOLoop(client)
 	if err != nil {
-		log.Infof("client %s error: %v", conn.RemoteAddr(), err)
+		log.Errorf("IOLoop: %v, client: %s", err, conn.RemoteAddr())
 	}
 
 	t.conns.Delete(conn.RemoteAddr())

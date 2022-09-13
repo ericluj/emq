@@ -99,12 +99,12 @@ func (c *Conn) readLoop() {
 		// 读取数据
 		err := c.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
 		if err != nil {
-			log.Infof("SetReadDeadline error: %v", err)
+			log.Errorf("SetReadDeadline: %v", err)
 			goto exit
 		}
 		frameType, body, err := protocol.ReadFrameData(c.conn)
 		if err != nil {
-			log.Infof("ReadFrameData error: %v", err)
+			log.Errorf("ReadFrameData: %v", err)
 			goto exit
 
 		}
@@ -113,7 +113,7 @@ func (c *Conn) readLoop() {
 		if frameType == common.FrameTypeResponse && bytes.Equal(body, common.HeartbeatBytes) {
 			err := c.Command(command.NopCmd())
 			if err != nil {
-				log.Infof("Command error: %v", err)
+				log.Errorf("Command: %v", err)
 				goto exit
 			}
 			continue
@@ -125,7 +125,7 @@ func (c *Conn) readLoop() {
 		case common.FrameTypeMessage:
 			m, err := protocol.DecodeMessage(body)
 			if err != nil {
-				log.Infof("DecodeMessage error: %v", err)
+				log.Errorf("DecodeMessage: %v", err)
 				goto exit
 			}
 

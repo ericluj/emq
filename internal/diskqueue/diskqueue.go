@@ -63,7 +63,7 @@ func New(name, dataPath string, syncEvery, maxBytesPerFile int64, minMsgSize, ma
 	}
 	err := d.retrieveMetadata()
 	if err != nil && !os.IsNotExist(err) {
-		log.Infof("retrieveMetadata error: %v, name: %s", err, d.name)
+		log.Errorf("retrieveMetadata: %v, name: %s", err, d.name)
 	}
 	go d.ioLoop()
 	return d
@@ -92,7 +92,7 @@ func (d *Diskqueue) ioLoop() {
 		if d.needSync {
 			err = d.sync()
 			if err != nil {
-				log.Infof("sync error: %v, name: %s", err, d.name)
+				log.Errorf("sync: %v, name: %s", err, d.name)
 			}
 			count = 0
 		}
@@ -103,7 +103,7 @@ func (d *Diskqueue) ioLoop() {
 			if d.nextReadPos == d.readPos {
 				dataRead, err = d.readOne()
 				if err != nil {
-					log.Infof("readOne error: %v, name: %s, fileName: %s, readPos: %d", err, d.name, d.fileName(d.readFileNum), d.readPos)
+					log.Errorf("readOne: %v, name: %s, fileName: %s, readPos: %d", err, d.name, d.fileName(d.readFileNum), d.readPos)
 					continue
 				}
 				r = d.readChan
@@ -306,7 +306,7 @@ func (d *Diskqueue) writeOne(data []byte) error {
 		// 每次写新文件前，sync缓冲区内容
 		err = d.sync()
 		if err != nil {
-			log.Infof("sync error: %v", err)
+			log.Errorf("sync: %v", err)
 		}
 
 		if d.writeFile != nil {
@@ -374,7 +374,7 @@ func (d *Diskqueue) moveForward() {
 		removeFileName := d.fileName(oldReadFileNum)
 		err := os.Remove(removeFileName)
 		if err != nil {
-			log.Infof("moveForward error: %v, name: %s, fileName: %s", err, d.name, removeFileName)
+			log.Errorf("moveForward: %v, name: %s, fileName: %s", err, d.name, removeFileName)
 		}
 	}
 }

@@ -101,7 +101,7 @@ func (t *Topic) messagePump() {
 		case bs := <-t.backend.ReadChan():
 			m, err := protocol.DecodeMessage(bs)
 			if err != nil {
-				log.Infof("DecodeMessage error: %v, topic: %s, msg: %s", err, t.name, msg.ID)
+				log.Errorf("DecodeMessage: %v, topic: %s, msg: %s", err, t.name, msg.ID)
 				continue
 			}
 			msg = &Message{
@@ -114,7 +114,7 @@ func (t *Topic) messagePump() {
 		for _, channel := range chans {
 			err := channel.PutMessage(msg)
 			if err != nil {
-				log.Infof("PutMessage error: %v,topic: %s, channel: %s, msg: %s", err, t.name, channel.name, msg.ID)
+				log.Errorf("PutMessage: %v,topic: %s, channel: %s, msg: %s", err, t.name, channel.name, msg.ID)
 			}
 		}
 	}
@@ -240,12 +240,12 @@ func (t *Topic) PutMessage(m *Message) error {
 		// 写入磁盘
 		data, err := m.Bytes()
 		if err != nil {
-			log.Infof("Bytes error: %v, topic: %s", err, t.name)
+			log.Errorf("Bytes: %v, topic: %s", err, t.name)
 			return err
 		}
 		err = t.backend.Put(data)
 		if err != nil {
-			log.Infof("Put error: %v, topic: %s", err, t.name)
+			log.Errorf("Put: %v, topic: %s", err, t.name)
 			return err
 		}
 	}

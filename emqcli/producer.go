@@ -20,7 +20,7 @@ func NewProducer(addr string) (*Producer, error) {
 	p.conn = NewConn(addr, nil, p)
 	err := p.conn.Connect()
 	if err != nil {
-		log.Infof("Connect error: %v", err)
+		log.Errorf("Connect: %v", err)
 		return nil, err
 	}
 

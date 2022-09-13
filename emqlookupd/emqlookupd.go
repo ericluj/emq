@@ -51,7 +51,7 @@ func (l *EMQLookupd) Main() error {
 	exitFunc := func(err error) {
 		once.Do(func() {
 			if err != nil {
-				log.Infof("exitFunc error: %v", err)
+				log.Errorf("exitFunc: %v", err)
 			}
 			exitCh <- err
 		})

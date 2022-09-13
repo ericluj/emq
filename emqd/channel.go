@@ -131,12 +131,12 @@ func (c *Channel) PutMessage(m *Message) error {
 		// 写入磁盘
 		data, err := m.Bytes()
 		if err != nil {
-			log.Infof("Bytes error: %v, channel: %s", err, c.name)
+			log.Errorf("Bytes: %v, channel: %s", err, c.name)
 			return err
 		}
 		err = c.backend.Put(data)
 		if err != nil {
-			log.Infof("put error: %v, channel: %s", err, c.name)
+			log.Errorf("Put: %v, channel: %s", err, c.name)
 			return err
 		}
 	}

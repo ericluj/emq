@@ -33,13 +33,13 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		// 设置deadline
 		err = client.conn.SetReadDeadline(time.Now().Add(common.ReadTimeout))
 		if err != nil {
-			log.Infof("SetReadDeadline error: %v", err)
+			log.Errorf("SetReadDeadline: %v", err)
 			return err
 		}
 
 		line, err = client.reader.ReadSlice('\n')
 		if err != nil {
-			log.Infof("ReadSlice error: %v", err)
+			log.Errorf("ReadSlice: %v", err)
 			break
 		}
 
@@ -51,12 +51,12 @@ func (l *LookupProtocol) IOLoop(c protocol.Client) error {
 		}
 		// 空格拆分
 		params := bytes.Split(line, common.SeparatorBytes)
-		log.Infof("PROTOCOL: %s, params: %s", client.conn.RemoteAddr(), params)
+		log.Debugf("PROTOCOL: %s, params: %s", client.conn.RemoteAddr(), params)
 
 		var response []byte
 		response, err = l.Exec(client, params)
 		if err != nil {
-			log.Infof("Exec error: %v", err)
+			log.Errorf("Exec: %v", err)
 			sendErr := protocol.SendFrameData(client.conn, common.FrameTypeError, []byte(err.Error()))
 			if sendErr != nil {
 				err = fmt.Errorf("send FrameTypeError error: %v", err)

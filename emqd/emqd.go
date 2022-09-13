@@ -62,7 +62,7 @@ func (e *EMQD) Main() error {
 	exitFunc := func(err error) {
 		once.Do(func() {
 			if err != nil {
-				log.Infof("exitFunc error: %v", err)
+				log.Errorf("exitFunc: %v", err)
 			}
 			exitCh <- err
 		})
@@ -133,7 +133,7 @@ func (e *EMQD) Notify(v interface{}) {
 			e.mtx.Lock()
 			err := e.PersistMetadata()
 			if err != nil {
-				log.Infof("PersistMetadata error: %v", err)
+				log.Errorf("PersistMetadata: %v", err)
 			}
 			e.mtx.Unlock()
 		}

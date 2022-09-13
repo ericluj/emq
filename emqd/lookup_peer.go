@@ -73,7 +73,7 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("IDENTIFYCmd resp: %s", resp)
+	log.Debugf("IDENTIFYCmd resp: %s", resp)
 	// TODO: 返回数据待处理
 
 	// 注册到lookupd
@@ -93,10 +93,10 @@ func (lp *LookupPeer) Connect(e *EMQD) error {
 	e.mtx.RUnlock()
 
 	for _, cmd := range cmds {
-		log.Infof("lookup: %s, cmd: %v", lp.addr, cmd)
+		log.Infof("lookup: %s, cmd: %s", lp.addr, cmd)
 		_, err := lp.Command(cmd)
 		if err != nil {
-			log.Infof("lookup: %s, cmd: %v, error: %v", lp.addr, cmd, err)
+			log.Errorf("Command: %v, lookup: %s, cmd: %v,", err, lp.addr, cmd)
 			return err
 		}
 	}

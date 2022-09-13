@@ -3,7 +3,7 @@ module github.com/ericluj/emq
 go 1.17
 
 require (
-	github.com/ericluj/elog v1.2.3
+	github.com/ericluj/elog v1.2.4
 	github.com/gin-contrib/pprof v1.4.0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-resty/resty/v2 v2.7.0

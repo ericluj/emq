@@ -16,7 +16,7 @@ func (l *LookupProtocol) PING(client *Client, params [][]byte) ([]byte, error) {
 	if client.peerInfo != nil {
 		cur := time.Unix(0, atomic.LoadInt64(&client.peerInfo.lastUpdate))
 		now := time.Now()
-		log.Infof("client: %s, pinged (last ping %s)", client.peerInfo.id, now.Sub(cur))
+		log.Debugf("client: %s, pinged (last ping %s)", client.peerInfo.id, now.Sub(cur))
 		atomic.StoreInt64(&client.peerInfo.lastUpdate, now.UnixNano())
 	}
 	return common.OKBytes, nil
@@ -68,7 +68,7 @@ func (l *LookupProtocol) IDENTIFY(client *Client, params [][]byte) ([]byte, erro
 
 	resp, err := json.Marshal(data)
 	if err != nil {
-		log.Infof("Marshal error: %v, data: %v", err, data)
+		log.Errorf("Marshal: %v, data: %v", err, data)
 		return common.OKBytes, nil
 	}
 

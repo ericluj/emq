@@ -87,7 +87,7 @@ func (co *Consumer) OnClose(conn *Conn) {
 func (co *Consumer) OnRequeue(msg *Message) {
 	cmd := command.RequeueCmd(msg.ID[:])
 	if err := msg.conn.Command(cmd); err != nil {
-		log.Infof("OnRequeue error: %v", err)
+		log.Errorf("Command: %v", err)
 		co.Stop()
 	}
 }
@@ -102,7 +102,7 @@ func (co *Consumer) handlerLoop(handler Handler) {
 		case msg := <-co.msgChan:
 			err := handler.HandleMessage(msg)
 			if err != nil {
-				log.Infof("HandleMessage error: %v", err)
+				log.Errorf("HandleMessage: %v", err)
 				msg.delegate = co
 				msg.Requeue()
 
@@ -225,7 +225,7 @@ retry:
 	url := "http://" + endpoint + "/lookup"
 	resp, err := co.lookupClient.R().SetQueryParams(req).Get(url)
 	if err != nil {
-		log.Infof("queryLookupd error: %v, endpoint: %s", err, endpoint)
+		log.Errorf("queryLookupd: %v, endpoint: %s", err, endpoint)
 		retryNum++
 		if retryNum < 3 {
 			log.Infof("retry queryLookupd")
@@ -236,14 +236,14 @@ retry:
 
 	data := lookupResp{}
 	if err := json.Unmarshal(resp.Body(), &data); err != nil {
-		log.Infof("queryLookupd Unmarshal error%v", err)
+		log.Errorf("Unmarshal: %v", err)
 		return
 	}
 
 	for _, v := range data.Producers {
 		err := co.ConnectToEMQD(v.TCPAddress)
 		if err != nil && err != ErrAlreadyConnected {
-			log.Infof("ConnectToEMQD error: %v", err)
+			log.Errorf("ConnectToEMQD: %v", err)
 			continue
 		}
 	}

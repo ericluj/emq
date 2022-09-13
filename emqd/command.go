@@ -29,7 +29,7 @@ func (p *Protocol) IDENTITY(client *Client, params [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("IDENTITY: failed to decode JSON body")
 	}
 
-	log.Infof("PROTOCOL: %s, %v", client.conn.RemoteAddr(), identifyData)
+	log.Debugf("PROTOCOL: %s, %v", client.conn.RemoteAddr(), identifyData)
 
 	// TODO: 这里是需要有一些identify的数据处理返回的
 
@@ -96,7 +96,7 @@ func (p *Protocol) SUB(client *Client, params [][]byte) ([]byte, error) {
 }
 
 func (p *Protocol) NOP(client *Client, params [][]byte) ([]byte, error) {
-	log.Infof("NOP")
+	log.Debugf("NOP")
 	return common.OKBytes, nil
 }
 

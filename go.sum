@@ -2,8 +2,8 @@ github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ3
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/ericluj/elog v1.2.3 h1:oMwXtzYL5LsoY6ImoZl3KeDiNlUOLg8b76XjdCFVuWE=
-github.com/ericluj/elog v1.2.3/go.mod h1:aoJvsSuA9fXCae2+mkLxhfX7lBFXEtXw/EoG16zw18k=
+github.com/ericluj/elog v1.2.4 h1:smULG9t3e9Lk4LVe+h9Hp1EFdlmCaNbHHA9cvjYTkEM=
+github.com/ericluj/elog v1.2.4/go.mod h1:aoJvsSuA9fXCae2+mkLxhfX7lBFXEtXw/EoG16zw18k=
 github.com/gin-contrib/pprof v1.4.0 h1:XxiBSf5jWZ5i16lNOPbMTVdgHBdhfGRD5PZ1LWazzvg=
 github.com/gin-contrib/pprof v1.4.0/go.mod h1:RrehPJasUVBPK6yTUwOl8/NP6i0vbUgmxtis+Z5KE90=
 github.com/gin-contrib/sse v0.1.0 h1:Y/yl/+YNO8GZSjAhjMsSuLt29uWRFHdHYUb5lYOV9qE=

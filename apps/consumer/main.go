@@ -16,16 +16,10 @@ func main() {
 
 	consumer.AddHandler(&ConsumerHandler{})
 
-	// 直连emqd
-	// err := consumer.ConnectToEMQD("127.0.0.1:6001")
-	// if err != nil {
-	// 	log.Fatalf("ConnectToEMQD fatal: %v", err)
-	// }
-
 	// 连接lookupd
 	err := consumer.ConnectToLookupd("127.0.0.1:7002")
-	if err != nil {
-		log.Fatalf("ConnectToLookupd fatal: %v", err)
+	if err == nil {
+		log.Fatalf("ConnectToLookupd: %v", err)
 	}
 
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
@@ -36,6 +30,6 @@ func main() {
 type ConsumerHandler struct{}
 
 func (ch *ConsumerHandler) HandleMessage(m *emqcli.Message) error {
-	log.Infof(string(m.Body))
+	log.Debugf(string(m.Body))
 	return nil
 }

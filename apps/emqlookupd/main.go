@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"sync"
 	"syscall"
 
+	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/emqlookupd"
 	"github.com/judwhite/go-svc"
 )
@@ -15,9 +15,10 @@ type program struct {
 }
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	prg := &program{}
 	if err := svc.Run(prg, syscall.SIGINT, syscall.SIGTERM); err != nil {
-		log.Fatalf("Run fatal: %v", err)
+		log.Fatalf("Run: %v", err)
 	}
 }
 
@@ -25,7 +26,7 @@ func (p *program) Init(env svc.Environment) error {
 	opts := emqlookupd.NewOptions()
 	emqlookupd, err := emqlookupd.NewEMQLookupd(opts)
 	if err != nil {
-		log.Fatalf("NewEMQLookupd fatal: %v", err)
+		log.Fatalf("NewEMQLookupd: %v", err)
 	}
 	p.emqlookupd = emqlookupd
 	return nil
@@ -37,7 +38,7 @@ func (p *program) Start() error {
 		err := p.emqlookupd.Main()
 		if err != nil {
 			_ = p.Stop()
-			log.Fatalf("Main fatal: %v", err)
+			log.Fatalf("Main: %v", err)
 		}
 	}()
 

@@ -28,13 +28,13 @@ type Options struct {
 func NewOptions() *Options {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Fatalf("NewOptions fatal: %v", err)
+		log.Fatalf("NewOptions: %v", err)
 	}
 
 	h := md5.New()
 	_, err = io.WriteString(h, hostname)
 	if err != nil {
-		log.Infof("error: %v", err)
+		log.Errorf("WriteString: %v", err)
 	}
 	defaultID := int64(crc32.ChecksumIEEE(h.Sum(nil)) % 1024)
 	return &Options{

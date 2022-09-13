@@ -17,7 +17,7 @@ func Serve(listener net.Listener, handler http.Handler) error {
 
 	err := server.Serve(listener)
 	if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-		log.Infof("network error: %v", err)
+		log.Errorf("Serve: %v", err)
 		return err
 	}
 
