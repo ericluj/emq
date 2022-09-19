@@ -18,7 +18,7 @@ func main() {
 
 	// 连接lookupd
 	err := consumer.ConnectToLookupd("127.0.0.1:7002")
-	if err == nil {
+	if err != nil {
 		log.Fatalf("ConnectToLookupd: %v", err)
 	}
 

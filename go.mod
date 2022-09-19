@@ -1,6 +1,6 @@
 module github.com/ericluj/emq
 
-go 1.17
+go 1.18
 
 require (
 	github.com/ericluj/elog v1.2.4

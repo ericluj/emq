@@ -1,0 +1,52 @@
+version: "3"
+networks:
+  default:
+    driver: bridge
+services:
+  emqlookupd1:
+    image: emqlookupd:v1
+    networks:
+      - default
+    ports:
+      - "7001:7001"
+      - "7002:7002"
+  emqlookupd2:
+    image: emqlookupd:v1
+    networks:
+      - default
+    ports:
+      - "7011:7001"
+      - "7012:7002"
+
+  emqd1:
+    image: emqd:v1
+    networks:
+      - default
+    ports:
+      - "6001:6001"
+      - "6002:6002"
+    depends_on:
+      - emqlookupd1
+      - emqlookupd2
+
+  emqd2:
+    image: emqd:v1
+    networks:
+      - default
+    ports:
+      - "6011:6001"
+      - "6012:6002"
+    depends_on:
+      - emqlookupd1
+      - emqlookupd2
+
+  emqd3:
+    image: emqd:v1
+    networks:
+      - default
+    ports:
+      - "6021:6001"
+      - "6022:6002"
+    depends_on:
+      - emqlookupd1
+      - emqlookupd2
