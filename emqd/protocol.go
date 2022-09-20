@@ -139,6 +139,7 @@ func (p *Protocol) MessagePump(client *Client, startedChan chan bool) {
 		case msg := <-memoryMsgChan:
 			msg.Attempts++
 			subChannel.StartInFlight(msg, client.ID)
+			atomic.AddInt64(&subChannel.messageCount, -1)
 			err := p.SendMessage(client, msg)
 			if err != nil {
 				log.Errorf("SendMessage: %v, RemoteAddr: %s", err, client.conn.RemoteAddr())

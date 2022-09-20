@@ -75,7 +75,7 @@ func (e *EMQD) Main() error {
 
 	// http server
 	e.wg.Wrap(func() {
-		exitFunc(http_api.Serve(e.httpListener, newHTTPServer()))
+		exitFunc(http_api.Serve(e.httpListener, newHTTPServer(e)))
 	})
 
 	// lookupLoop

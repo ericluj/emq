@@ -25,6 +25,8 @@ type Channel struct {
 
 	inFlightMtx      sync.Mutex
 	inFlightMessages map[protocol.MessageID]*Message
+
+	messageCount int64
 }
 
 func (c *Channel) GetName() string {
@@ -140,6 +142,7 @@ func (c *Channel) PutMessage(m *Message) error {
 			return err
 		}
 	}
+	atomic.AddInt64(&c.messageCount, 1)
 
 	return nil
 }
