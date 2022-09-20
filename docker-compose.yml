@@ -10,6 +10,9 @@ services:
     ports:
       - "7001:7001"
       - "7002:7002"
+    environment:
+      - HOST=emqlookupd1
+
   emqlookupd2:
     image: emqlookupd:v1
     networks:
@@ -17,6 +20,8 @@ services:
     ports:
       - "7011:7001"
       - "7012:7002"
+    environment:
+      - HOST=emqlookupd2
 
   emqd1:
     image: emqd:v1
@@ -25,6 +30,8 @@ services:
     ports:
       - "6001:6001"
       - "6002:6002"
+    environment:
+      - HOST=emqd1
     depends_on:
       - emqlookupd1
       - emqlookupd2
@@ -36,6 +43,8 @@ services:
     ports:
       - "6011:6001"
       - "6012:6002"
+    environment:
+      - HOST=emqd2
     depends_on:
       - emqlookupd1
       - emqlookupd2
@@ -47,6 +56,8 @@ services:
     ports:
       - "6021:6001"
       - "6022:6002"
+    environment:
+      - HOST=emqd3
     depends_on:
       - emqlookupd1
       - emqlookupd2

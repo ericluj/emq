@@ -2,6 +2,7 @@ package emqd
 
 import (
 	"crypto/md5"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	log "github.com/ericluj/elog"
 	"github.com/ericluj/emq/internal/common"
+	"github.com/ericluj/emq/internal/util"
 )
 
 type Options struct {
@@ -37,7 +39,7 @@ func NewOptions() *Options {
 		log.Errorf("WriteString: %v", err)
 	}
 	defaultID := int64(crc32.ChecksumIEEE(h.Sum(nil)) % 1024)
-	return &Options{
+	o := &Options{
 		ID:          defaultID,
 		TCPAddress:  "0.0.0.0:6001",
 		HTTPAddress: "0.0.0.0:6002",
@@ -52,4 +54,13 @@ func NewOptions() *Options {
 		SyncEvery:       2000,
 		SyncTimeout:     2 * time.Second,
 	}
+	if util.IsDocker() {
+		o.TCPAddress = fmt.Sprintf("%s:6001", util.GetDockerHost())
+		o.HTTPAddress = fmt.Sprintf("%s:6002", util.GetDockerHost())
+		o.LookupdTCPAddresses = []string{
+			"emqlookupd1:7001",
+			"emqlookupd2:7001",
+		}
+	}
+	return o
 }

@@ -21,6 +21,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("ConnectToLookupd: %v", err)
 	}
+	// err = consumer.ConnectToLookupd("127.0.0.1:7012")
+	// if err != nil {
+	// 	log.Fatalf("ConnectToLookupd: %v", err)
+	// }
 
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
@@ -30,6 +34,6 @@ func main() {
 type ConsumerHandler struct{}
 
 func (ch *ConsumerHandler) HandleMessage(m *emqcli.Message) error {
-	log.Debugf(string(m.Body))
+	log.Infof(string(m.Body))
 	return nil
 }

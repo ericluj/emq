@@ -37,3 +37,11 @@ func ReadFile(fn string) ([]byte, error) {
 	}
 	return data, nil
 }
+
+func IsDocker() bool {
+	return os.Getenv("ISDOCKER") == "on"
+}
+
+func GetDockerHost() string {
+	return os.Getenv("HOST")
+}

@@ -4,6 +4,7 @@ COPY ./  ./
 RUN export GO111MODULE=on && CGO_ENABLED=0 GOOS=linux go build -o build/emqd /root/apps/emqd/main.go
 
 FROM alpine:latest
+ENV ISDOCKER=on
 WORKDIR /root
 RUN mkdir ./tmp
 COPY --from=builder /root/build/emqd ./

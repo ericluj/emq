@@ -213,6 +213,15 @@ func (co *Consumer) nextLookupdEndpoint() string {
 	return addr
 }
 
+var addrMap = map[string]string{
+	"emqd1:6001": "127.0.0.1:6001",
+	"emqd1:6002": "127.0.0.1:6002",
+	"emqd2:6001": "127.0.0.1:6011",
+	"emqd2:6002": "127.0.0.1:6012",
+	"emqd3:6001": "127.0.0.1:6021",
+	"emqd4:6002": "127.0.0.1:6022",
+}
+
 func (co *Consumer) queryLookupd() {
 	retryNum := 0
 
@@ -241,7 +250,13 @@ retry:
 	}
 
 	for _, v := range data.Producers {
-		err := co.ConnectToEMQD(v.TCPAddress)
+		addr := v.TCPAddress
+		if !util.IsDocker() {
+			if t, ok := addrMap[addr]; ok {
+				addr = t
+			}
+		}
+		err := co.ConnectToEMQD(addr)
 		if err != nil && err != ErrAlreadyConnected {
 			log.Errorf("ConnectToEMQD: %v", err)
 			continue
